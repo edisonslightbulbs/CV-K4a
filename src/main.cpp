@@ -39,5 +39,13 @@ int main(int argc, char* argv[])
     cv::imshow("blue", rgbChannel[0]);
     cv::imshow("green", rgbChannel[1]);
     cv::imshow("red", rgbChannel[2]);
+
+    /** zero the red channel */
+    rgbChannel[2] = cv::Mat::zeros(rgbChannel[2].size(), CV_8UC1);
+
+    /** merge the modified channel into a new cv::Mat (output) */
+    cv::Mat output;
+    cv::merge(rgbChannel, 3, output);
+    cv::imshow("modified", output);
     cv::waitKey();
 }
