@@ -212,5 +212,5 @@ Kinect::Kinect()
 
     /** capture dry run */
     capture();
-    projection();
+    //projection();
 }
