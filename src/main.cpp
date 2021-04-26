@@ -2,62 +2,19 @@
 
 #include "kinect.h"
 
-void computeDft(cv::Mat& source, cv::Mat& destination){
-    cv::Mat grayImageComplex[2] = { source, cv::Mat::zeros(source.size(), CV_32F) };
-
-    cv::Mat dft;
-    cv::Mat grayImageDft;
-
-    cv::merge(grayImageComplex, 2, dft);
-    cv::dft(dft, grayImageDft, cv::DFT_COMPLEX_OUTPUT);
-
-    destination = grayImageDft;
+void createGaussian(cv::Size& size, cv:: Mat& output, int uX, int uY, float sigmaX, float sigmaY, float amplitude = 1.0f){
+    cv::Mat temp = cv::Mat(size, CV_32F);
+    for (int r = 0; r < size.height; r++){
+        for(int c = 0; c < size.width; c++){
+            float x = (float)((c - uX) * (c -uX)) / (2.0f * sigmaX * sigmaX);
+            float y = (float)((c - uY) * (c -uY)) / (2.0f * sigmaY * sigmaY);
+            float value  = amplitude * exp(-(x + y));
+            temp.at<float>(r, c) = value;
+        }
+        cv::normalize(temp, temp, 0.0f, 1.0f, cv::NORM_MINMAX);
+        output = temp;
+    }
 }
-// only applied for visualization and should not be
-// applied during computation on the dft itself.
-void recenterDft(cv::Mat& source){
-    int centerX = source.cols / 2;
-    int centerY = source.rows / 2;
-
-    cv::Mat q1(source, cv::Rect(0, 0, centerX, centerY));
-    cv::Mat q2(source, cv::Rect(centerX, 0, centerX, centerY));
-    cv::Mat q3(source, cv::Rect(0, centerY, centerX, centerY));
-    cv::Mat q4(source, cv::Rect(centerX, centerY, centerX, centerY));
-
-    cv::Mat swapMap;
-
-    q1.copyTo(swapMap);
-    q4.copyTo(q1);
-    swapMap.copyTo(q4);
-
-    q2.copyTo(swapMap);
-    q3.copyTo(q2);
-    swapMap.copyTo(q3);
-}
-
-void showDft(cv::Mat& source){
-    cv::Mat splitChannel[2] = { cv::Mat::zeros(source.size(), CV_32F), cv::Mat::zeros(source.size(), CV_32F) };
-    cv:split(source, splitChannel);
-
-    cv::Mat dftMagnitude;
-    cv::magnitude(splitChannel[0], splitChannel[1], dftMagnitude);
-    dftMagnitude += cv::Scalar::all(1);
-
-    cv::log(dftMagnitude, dftMagnitude);
-    cv::normalize(dftMagnitude, dftMagnitude, 0, 1, cv::NORM_MINMAX);
-
-    // recenterDft(dftMagnitude);
-    cv::imshow("dft", dftMagnitude);
-    // cv::waitKey();
-}
-
-//inverting back from the frequency domain
-void invertDft(cv::Mat& source, cv::Mat& destination){
-    cv::Mat inverse;
-    cv::dft(source, inverse, cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT | CV_HAL_DFT_SCALE);
-    destination = inverse;
-}
-
 
 
 int main(int argc, char* argv[])
@@ -86,18 +43,13 @@ int main(int argc, char* argv[])
     // into a 3 channel image first before using split. Not casting it
     // before using split will cause a seg fault.
 
-    //  actual dft computation starts here:
+    //  actual gaussian computation starts here:
     //
-    cv::Mat grayImageFloat;
-    grayImage.convertTo(grayImageFloat, CV_32FC1, 1.0 / 255.0);
+    cv::Mat output;
+    cv::Size s = cv::Size(256, 256);
 
-    cv::Mat grayImageDft;
+    createGaussian(s, output, 256/2, 256/2, 10,10, 1.0f);
+    cv::imshow("gaussian", output);
 
-    computeDft(grayImageFloat, grayImageDft);
-    showDft(grayImageDft);
-
-    cv::Mat invertedDft;
-    invertDft(grayImageDft, invertedDft);
-    cv::imshow("inverted dft", invertedDft);
     cv::waitKey();
 }
