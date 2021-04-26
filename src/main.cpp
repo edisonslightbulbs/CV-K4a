@@ -20,24 +20,36 @@ int main(int argc, char* argv[])
     /** write image */
     cv::imwrite(IMAGE, img);
 
-    /** load color image*/
-    cv::Mat imgFile = cv::imread(IMAGE, cv::IMREAD_COLOR);
-
     /** load gray scale */
     cv::Mat gImgFile = cv::imread(IMAGE, cv::IMREAD_GRAYSCALE);
-    cv::Mat modified = cv::imread(IMAGE, cv::IMREAD_GRAYSCALE);
+    cv::Mat modifiedGray = cv::imread(IMAGE, cv::IMREAD_GRAYSCALE);
 
-    /** modifying an image */
+    /** modifying gray-scale image */
     for(int r = 0; r < gImgFile.rows; r++){
         for(int c = 0; c < gImgFile.cols; c++ ){
-            modified.at<uint8_t>(r, c) = modified.at<uint8_t>(r, c) * 0.5;
+            modifiedGray.at<uint8_t>(r, c) = modifiedGray.at<uint8_t>(r, c) * 0.5;
         }
     }
 
-    /** show image */
-    cv::imshow("color", imgFile);
+    /** load color image*/
+    cv::Mat imgFile = cv::imread(IMAGE, cv::IMREAD_COLOR);
+    cv::Mat modifiedColor = cv::imread(IMAGE, cv::IMREAD_COLOR);
+
+    /** modifying color image */
+    for(int r = 0; r < imgFile.rows; r++){
+        for(int c = 0; c < imgFile.cols; c++ ){
+            modifiedColor.at<cv::Vec3b>(r, c)[0] = modifiedColor.at<cv::Vec3b>(r, c)[0] * 0;
+        }
+    }
+
+
+    /** show images */
     cv::imshow("gray", gImgFile);
-    cv::imshow("modified", gImgFile);
+    cv::imshow("modifiedGray", modifiedGray);
+
+    cv::imshow("color", imgFile);
+    cv::imshow("modifiedColor", modifiedColor);
+
     cv::waitKey();
 
     /** release resources */
