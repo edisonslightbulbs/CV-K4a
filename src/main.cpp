@@ -193,7 +193,7 @@ int main(int argc, char* argv[])
                     calibrationSquareDimension, cameraMatrix,
                     distanceCoefficients);
                 saveCameraCalibration(
-                    "calibrationdata.txt", cameraMatrix, distanceCoefficients);
+                    "calibration.txt", cameraMatrix, distanceCoefficients);
                 std::exit(0);
             }
         default:
