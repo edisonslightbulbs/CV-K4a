@@ -17,15 +17,15 @@
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
 const float calibrationSquareDimension = 0.02500f; // meters
-const float arucoSquareDimension = 0.1016f;        // meters
+const float arucoSquareDimension = 0.0565f;        // meters
 const cv::Size chessboardDimensions = cv::Size(9, 6);
 
 void createArucoMarkers()
 {
     cv::Mat outputMarker;
     cv::Ptr<cv::aruco::Dictionary> markerDictionary
-        = cv::aruco::getPredefinedDictionary(
-            cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
+            = cv::aruco::getPredefinedDictionary(
+                    cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
 
     for (int i = 0; i < 50; i++) {
         cv::aruco::drawMarker(markerDictionary, i, 500, outputMarker, 1);
@@ -37,24 +37,24 @@ void createArucoMarkers()
 }
 
 void createKnownBoarderPosition(const cv::Size& boardSize,
-    float squareEdgeLength, std::vector<cv::Point3f>& corners)
+                                float squareEdgeLength, std::vector<cv::Point3f>& corners)
 {
     for (int i = 0; i < boardSize.height; i++) {
         for (int j = 0; j < boardSize.width; j++) {
             corners.emplace_back(cv::Point3f((float)j * squareEdgeLength,
-                (float)i * squareEdgeLength, 0.0f));
+                                             (float)i * squareEdgeLength, 0.0f));
         }
     }
 }
 
 void getChessboardCorners(std::vector<cv::Mat>& images,
-    std::vector<std::vector<cv::Point2f>>& allFoundCorners,
-    bool showResults = false)
+                          std::vector<std::vector<cv::Point2f>>& allFoundCorners,
+                          bool showResults = false)
 {
     for (auto& image : images) {
         std::vector<cv::Point2f> pointBuf;
         bool found = cv::findChessboardCorners(image, cv::Size(9, 6), pointBuf,
-            cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+                                               cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
 
         if (found) {
             allFoundCorners.emplace_back(pointBuf);
@@ -69,34 +69,38 @@ void getChessboardCorners(std::vector<cv::Mat>& images,
 }
 
 void cameraCalibration(std::vector<cv::Mat> calibrationImages,
-    cv::Size boardSize, float squareEdgeLength, cv::Mat& cameraMatrix,
-    cv::Mat& distanceCoefficients)
+                       cv::Size boardSize, float squareEdgeLength, cv::Mat& cameraMatrix,
+                       cv::Mat& distanceCoefficients)
 {
     std::vector<std::vector<cv::Point2f>> checkerboardImageSpacePoints;
     getChessboardCorners(
-        calibrationImages, checkerboardImageSpacePoints, false);
+            calibrationImages, checkerboardImageSpacePoints, false);
 
     std::vector<std::vector<cv::Point3f>> worldSpaceCornersPoints(1);
 
     createKnownBoarderPosition(
-        boardSize, squareEdgeLength, worldSpaceCornersPoints[0]);
+            boardSize, squareEdgeLength, worldSpaceCornersPoints[0]);
     worldSpaceCornersPoints.resize(
-        checkerboardImageSpacePoints.size(), worldSpaceCornersPoints[0]);
+            checkerboardImageSpacePoints.size(), worldSpaceCornersPoints[0]);
 
     std::vector<cv::Mat> rVectors, tVectors;
     distanceCoefficients = cv::Mat::zeros(8, 1, CV_64F);
 
     cv::calibrateCamera(worldSpaceCornersPoints, checkerboardImageSpacePoints,
-        boardSize, cameraMatrix, distanceCoefficients, rVectors, tVectors);
+                        boardSize, cameraMatrix, distanceCoefficients, rVectors, tVectors);
 }
 
 bool saveCameraCalibration(
-    std::string name, cv::Mat cameraMatrix, cv::Mat distanceCoefficients)
+        std::string name, cv::Mat cameraMatrix, cv::Mat distanceCoefficients)
 {
     std::ofstream outStream(name);
     if (outStream) {
+
         uint16_t rows = cameraMatrix.rows;
         uint16_t columns = cameraMatrix.cols;
+
+        outStream << rows << std::endl;
+        outStream << columns << std::endl;
 
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < columns; c++) {
@@ -107,6 +111,9 @@ bool saveCameraCalibration(
 
         rows = distanceCoefficients.rows;
         columns = distanceCoefficients.cols;
+
+        outStream << rows << std::endl;
+        outStream << columns << std::endl;
 
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < columns; c++) {
@@ -120,12 +127,97 @@ bool saveCameraCalibration(
     return false;
 }
 
-int main(int argc, char* argv[])
-{
+bool loadCameraCalibration(std::string name, cv::Mat& cameraMatrix, cv::Mat& distanceCoefficients) {
+    std::ifstream inStream(name);
+    if (inStream) {
+
+        uint16_t rows;
+        uint16_t columns;
+
+        inStream >> rows;
+        inStream >> columns;
+        cameraMatrix = cv::Mat(cv::Size(columns, rows), CV_64F);
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < columns; c++) {
+                double read = 0.0f;
+                inStream >> read;
+                cameraMatrix.at<double>(r, c) = read;
+                std::cout << cameraMatrix.at<double>(r, c) << "\n";
+            }
+        }
+        inStream >> rows;
+        inStream >> columns;
+        distanceCoefficients = cv::Mat(cv::Size(columns, rows), CV_64F);
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < columns; c++) {
+                double read = 0.0f;
+                inStream >> read;
+                distanceCoefficients.at<double>(r, c) = read;
+                std::cout << cameraMatrix.at<double>(r, c) << "\n";
+            }
+        }
+        inStream.close();
+        return true;
+    }
+    return false;
+}
+
+
+int startWebCamMonitoring(const cv::Mat& cameraMatrix, const cv::Mat& distanceCoefficients, float arucoSquareDimensions){
+    cv::Mat frame;
+    cv::aruco::DetectorParameters parameters;
+
+    std::vector<int> markerIds;
+    std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCorners;
+
+    cv::Ptr<cv::aruco::Dictionary> markerDictionary = cv::aruco::getPredefinedDictionary(cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
+
+    /** create named window */
+    cv::namedWindow("kinect", cv::WINDOW_AUTOSIZE);
+
+    /** calibration R and t */
+    std::vector<cv::Vec3d> rotationVectors, translationVectors;
+
+    /** initialize kinect */
+    std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+    int rgbWidth = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
+    int rgbHeight = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
+
+
+    while (true) {
+        /** get next frame from kinect */
+        sptr_kinect->getFrame(RGB_TO_DEPTH);
+
+        /** get image from kinect */
+        uint8_t *color_image_data
+                = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
+
+        /** release resources */
+        sptr_kinect->release();
+
+        /** cast to cv::Mat */
+        frame = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void *) color_image_data, cv::Mat::AUTO_STEP);
+
+        cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGB);
+
+        cv::aruco::detectMarkers(frame, markerDictionary, markerCorners, markerIds);
+        cv::aruco::estimatePoseSingleMarkers(markerCorners, arucoSquareDimension, cameraMatrix, distanceCoefficients, rotationVectors, translationVectors);
+
+        /** draw axis on the detected aruco markers */
+        for (int i = 0; i < markerIds.size(); i ++){
+            cv::aruco::drawAxis(frame, cameraMatrix, distanceCoefficients, rotationVectors[i], translationVectors[i], 0.1f);
+        }
+        cv::imshow("kinect", frame);
+        if (cv::waitKey(30) >= 0) break;
+    }
+    return 1;
+}
+
+void sequenceCalibration(cv::Mat& cameraMatrix, cv::Mat distanceCoefficients){
     cv::Mat frame;
     cv::Mat drawToFrame;
-    cv::Mat distanceCoefficients;
-    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
 
     std::vector<cv::Mat> savedImages;
     std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
@@ -147,26 +239,26 @@ int main(int argc, char* argv[])
 
         /** get image from kinect */
         uint8_t* color_image_data
-            = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
+                = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
 
         /** release resources */
         sptr_kinect->release();
 
         /** cast to cv::Mat */
         frame = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void*)color_image_data,
-            cv::Mat::AUTO_STEP);
+                        cv::Mat::AUTO_STEP);
 
         /** find corners */
         std::vector<cv::Point2f> foundPoints;
         bool found = false;
         found = cv::findChessboardCorners(frame, chessboardDimensions,
-            foundPoints,
-            cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+                                          foundPoints,
+                                          cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
         frame.copyTo(drawToFrame);
 
         /** if found,  draw them */
         cv::drawChessboardCorners(
-            drawToFrame, chessboardDimensions, foundPoints, found);
+                drawToFrame, chessboardDimensions, foundPoints, found);
 
         if (found) {
             cv::imshow("kinect", drawToFrame);
@@ -176,29 +268,40 @@ int main(int argc, char* argv[])
         int key = cv::waitKey(1000 / fps);
 
         switch (key) {
-        case 13:
-            /** save image */
-            if (found) {
-                cv::Mat temp;
-                frame.copyTo(temp);
-                savedImages.emplace_back(temp);
-                std::cout << "current number of images: " << savedImages.size()
-                          << std::endl;
-            }
-            break;
-        case 27:
-            /** calibrate */
-            if (savedImages.size() > 15) {
-                cameraCalibration(savedImages, chessboardDimensions,
-                    calibrationSquareDimension, cameraMatrix,
-                    distanceCoefficients);
-                saveCameraCalibration(
-                    "calibration.txt", cameraMatrix, distanceCoefficients);
-                std::exit(0);
-            }
-        default:
-            break;
+            case 13:
+                /** save image */
+                if (found) {
+                    cv::Mat temp;
+                    frame.copyTo(temp);
+                    savedImages.emplace_back(temp);
+                    std::cout << "current number of images: " << savedImages.size()
+                              << std::endl;
+                }
+                break;
+            case 27:
+                /** calibrate */
+                if (savedImages.size() > 15) {
+                    cameraCalibration(savedImages, chessboardDimensions,
+                                      calibrationSquareDimension, cameraMatrix,
+                                      distanceCoefficients);
+                    saveCameraCalibration(
+                            "calibration.txt", cameraMatrix, distanceCoefficients);
+                    std::exit(0);
+                }
+            default:
+                break;
         }
     }
+}
+
+int main(int argc, char* argv[])
+{
+    cv::Mat distanceCoefficients;
+    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+
+    //sequenceCalibration(cameraMatrix, distanceCoefficients);
+    loadCameraCalibration("calibration.txt", cameraMatrix, distanceCoefficients);
+    startWebCamMonitoring(cameraMatrix, distanceCoefficients, arucoSquareDimension);
+
     return 0;
 }
