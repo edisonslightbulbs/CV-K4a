@@ -1,15 +1,12 @@
 #ifndef KINECT_H
 #define KINECT_H
 
-#include <atomic>
 #include <cfloat>
 #include <k4a/k4a.h>
 #include <mutex>
 #include <shared_mutex>
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d.hpp>
-
-#include "point.h"
 
 /**
  * @struct DEVICE_CONF
@@ -127,62 +124,6 @@ public:
 
     k4a_image_t getPclImage();
 
-    void projection(){
-        std::vector<k4a_float3_t> points_3d = { { { 0.f, 0.f, 1000.f } },          // color camera center
-                                           { { -1000.f, -1000.f, 1000.f } },  // color camera top left
-                                           { { 1000.f, -1000.f, 1000.f } },   // color camera top right
-                                           { { 1000.f, 1000.f, 1000.f } },    // color camera bottom right
-                                           { { -1000.f, 1000.f, 1000.f } } }; // color camera bottom left
-
-        // k4a project function
-        std::vector<k4a_float2_t> k4a_points_2d(points_3d.size());
-        for (size_t i = 0; i < points_3d.size(); i++)
-        {
-            int valid = 0;
-            k4a_calibration_3d_to_2d(&m_calibration,
-                                     &points_3d[i],
-                                     K4A_CALIBRATION_TYPE_COLOR,
-                                     K4A_CALIBRATION_TYPE_DEPTH,
-                                     &k4a_points_2d[i],
-                                     &valid);
-        }
-
-        // converting the calibration data to OpenCV format
-        // extrinsic transformation from color to depth camera
-        cv::Mat se3 =
-                cv::Mat(3, 3, CV_32FC1, m_calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH].rotation);
-        cv::Mat r_vec = cv::Mat(3, 1, CV_32FC1);
-        Rodrigues(se3, r_vec);
-        cv::Mat t_vec =
-                cv::Mat(3, 1, CV_32F, m_calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH].translation);
-
-        // intrinsic parameters of the depth camera
-        k4a_calibration_intrinsic_parameters_t *intrinsics = &m_calibration.depth_camera_calibration.intrinsics.parameters;
-        std::vector<float> _camera_matrix = {
-                intrinsics->param.fx, 0.f, intrinsics->param.cx, 0.f, intrinsics->param.fy, intrinsics->param.cy, 0.f, 0.f, 1.f
-        };
-        cv::Mat camera_matrix = cv::Mat(3, 3, CV_32F, &_camera_matrix[0]);
-        std::vector<float> _dist_coeffs = { intrinsics->param.k1, intrinsics->param.k2, intrinsics->param.p1,
-                                       intrinsics->param.p2, intrinsics->param.k3, intrinsics->param.k4,
-                                       intrinsics->param.k5, intrinsics->param.k6 };
-        cv::Mat dist_coeffs = cv::Mat(8, 1, CV_32F, &_dist_coeffs[0]);
-
-        // OpenCV project function
-        std::vector<cv::Point2f> cv_points_2d(points_3d.size());
-        projectPoints(*reinterpret_cast<std::vector<cv::Point3f> *>(&points_3d),
-                      r_vec,
-                      t_vec,
-                      camera_matrix,
-                      dist_coeffs,
-                      cv_points_2d);
-
-        for (size_t i = 0; i < points_3d.size(); i++)
-        {
-            printf("3d point:\t\t\t(%.5f, %.5f, %.5f)\n", points_3d[i].v[0], points_3d[i].v[1], points_3d[i].v[2]);
-            printf("OpenCV projectPoints:\t\t(%.5f, %.5f)\n", cv_points_2d[i].x, cv_points_2d[i].y);
-            printf("k4a_calibration_3d_to_2d:\t(%.5f, %.5f)\n\n", k4a_points_2d[i].v[0], k4a_points_2d[i].v[1]);
-        }
-
-    }
+    void openCVKinectCalibration();
 };
 #endif /* KINECT_H */
