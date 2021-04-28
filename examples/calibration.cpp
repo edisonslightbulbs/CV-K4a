@@ -126,6 +126,7 @@ bool exportCalibration(
 bool importCalibration(const std::string& name, cv::Mat& cameraMatrix,
     cv::Mat& distanceCoefficients)
 {
+    std::cout << "-- loading calibration parameters" << std::endl;
     std::ifstream inStream(name);
     if (inStream) {
 
@@ -186,6 +187,7 @@ int findArucoMarkers(const cv::Mat& cameraMatrix,
     int rgbWidth = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
     int rgbHeight = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
 
+    std::cout << "-- place aruco marker/s in front of camera" << std::endl;
     while (true) {
         /** get next frame from kinect */
         sptr_kinect->getFrame(RGB_TO_DEPTH);
@@ -243,7 +245,11 @@ void startChessBoardCalibration(
     /** create named window */
     cv::namedWindow("kinect", cv::WINDOW_AUTOSIZE);
 
-    while (true) {
+    bool done = false;
+    std::cout << "-- take a minimum of 20 calibration  images" << std::endl;
+    std::cout << "-- press ENTER to take images" << std::endl;
+    std::cout << "-- press ESCAPE to exit image shoot mode" << std::endl;
+    while (!done) {
         /** get next frame from kinect */
         sptr_kinect->getFrame(RGB_TO_DEPTH);
 
@@ -288,6 +294,7 @@ void startChessBoardCalibration(
                           << std::endl;
             }
             break;
+
         case 27:
             /** calibrate */
             if (savedImages.size() > 15) {
@@ -296,7 +303,7 @@ void startChessBoardCalibration(
                     distanceCoefficients);
                 exportCalibration(
                     "calibration.txt", cameraMatrix, distanceCoefficients);
-                std::exit(0);
+                done = true;
             }
         default:
             break;
