@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11)
-project(learnCV)
+project(CVKinect)
 
 # optimization for dev environments
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -26,7 +26,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 option(EXECUTE_TARGET "Execute Project Target" ON)                 # default OFF
 option(BUILD_SHARED_LIBS "Build Shared Library" ON)                # default ON
 option(OPTIMIZE_PROJECT "Tidy up and optimize source code" OFF)    # default OFF
-option(INITIALIZE_K4A_SDK "Initialize the kinect SDK project" OFF) # default ON
+option(INITIALIZE_K4A_SDK "Initialize the kinect SDK project" ON) # default ON <- use for initializing Kinect SDK
 
 if(OPTIMIZE_PROJECT)
     if(UNIX AND NOT APPLE)
@@ -89,14 +89,14 @@ file(GLOB_RECURSE LIBS_SRC
     )
 
 # set-up target
-add_executable(learnCV
+add_executable(CVKinect
     ${EXT_SRC}
     ${LIBS_SRC}
     ${SRC_DIR}/main.cpp
     )
 
 # set-up target include directories
-target_include_directories(learnCV PRIVATE
+target_include_directories(CVKinect PRIVATE
     ${K4A_VERSION}
     ${K4A_INCLUDE}
     ${INCLUDE_DIRS}
@@ -104,7 +104,7 @@ target_include_directories(learnCV PRIVATE
     )
 
 # link libraries
-target_link_libraries(learnCV
+target_link_libraries(CVKinect
     glog
     gflags
     Eigen3::Eigen
@@ -115,8 +115,8 @@ target_link_libraries(learnCV
 
 # link libraries
 if(EXECUTE_TARGET)
-    add_custom_command(TARGET learnCV
+    add_custom_command(TARGET CVKinect
         POST_BUILD
-        COMMAND ./build/bin/learnCV --logtostderr=1
+        COMMAND ./scripts/execute.sh
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 endif()
