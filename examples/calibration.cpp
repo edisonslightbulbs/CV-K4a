@@ -13,8 +13,6 @@
 
 #include "kinect.h"
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "EndlessLoop"
 const float calibrationSquareDimension = 0.02500f; // meters
 const float arucoSquareDimension = 0.0565f;        // meters
 
