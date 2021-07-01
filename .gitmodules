@@ -1,3 +1,4 @@
 [submodule "external/Azure-Kinect-Sensor-SDK"]
 	path = external/Azure-Kinect-Sensor-SDK
 	url = https://github.com/microsoft/Azure-Kinect-Sensor-SDK.git
+    ignore = dirty
