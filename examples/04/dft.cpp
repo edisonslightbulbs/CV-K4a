@@ -1,11 +1,10 @@
 #include <opencv2/opencv.hpp>
-
 #include "kinect.h"
 
 void computeDft(cv::Mat& source, cv::Mat& destination)
 {
     cv::Mat grayImageComplex[2]
-        = { source, cv::Mat::zeros(source.size(), CV_32F) };
+            = { source, cv::Mat::zeros(source.size(), CV_32F) };
 
     cv::Mat dft;
     cv::Mat grayImageDft;
@@ -42,9 +41,9 @@ void recenterDft(cv::Mat& source)
 void showDft(cv::Mat& source)
 {
     cv::Mat splitChannel[2] = { cv::Mat::zeros(source.size(), CV_32F),
-        cv::Mat::zeros(source.size(), CV_32F) };
-cv:
-    split(source, splitChannel);
+                                cv::Mat::zeros(source.size(), CV_32F) };
+
+    cv::split(source, splitChannel);
 
     cv::Mat dftMagnitude;
     cv::magnitude(splitChannel[0], splitChannel[1], dftMagnitude);
@@ -53,10 +52,17 @@ cv:
     cv::log(dftMagnitude, dftMagnitude);
     cv::normalize(dftMagnitude, dftMagnitude, 0, 1, cv::NORM_MINMAX);
 
-    // recenterDft(dftMagnitude); <-- play around with this for different visual
+#define VISUALIZE 1
+// recenter dft is for cosmetics and should
+// only be used for visualization
+//
+#if VISUALIZE == 1
+    recenterDft(dftMagnitude);
+#endif
+
     // output
     cv::imshow("dft", dftMagnitude);
-    // cv::waitKey();
+    cv::waitKey();
 }
 
 // inverting back from the frequency domain
@@ -64,49 +70,44 @@ void invertDft(cv::Mat& source, cv::Mat& destination)
 {
     cv::Mat inverse;
     cv::dft(source, inverse,
-        cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT | CV_HAL_DFT_SCALE);
+            cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT | CV_HAL_DFT_SCALE);
     destination = inverse;
 }
 
-int main(int argc, char* argv[])
+int main()
 {
-    /** initialize kinect */
-    const std::string IMAGE = "./output/scene.png";
+    // initialize kinect
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+
+    // get k4a image and dims
+    uint8_t* color_image_data = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
     int rgbWidth = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
     int rgbHeight = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
 
-    /** get image from kinect */
-    uint8_t* color_image_data = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
+    // clone and convert to OpenCV Mat
+    cv::Mat img = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void*)color_image_data,
+                          cv::Mat::AUTO_STEP).clone();
 
-    /** release resources */
+    // release k4a resources
     sptr_kinect->release();
 
-    /** cast to cv::Mat */
-    cv::Mat img = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void*)color_image_data,
-        cv::Mat::AUTO_STEP);
-
-    /** write image */
+    // write image
+    const std::string IMAGE = "./scene.png";
     cv::imwrite(IMAGE, img);
 
-    /** load grey-scale image */
-    cv::Mat grayImage = cv::imread(IMAGE, cv::IMREAD_GRAYSCALE);
-    // *img from kinect needs to be cast into a cv color image, i.e.,
-    // into a 3 channel image first before using split. Not casting it
-    // before using split will cause a seg fault.
+    // load grey-scale image
+    cv::Mat greyImg = cv::imread(IMAGE, cv::IMREAD_GRAYSCALE);
 
-    //  actual dft computation starts here:
-    //
+    // do dft
     cv::Mat grayImageFloat;
-    grayImage.convertTo(grayImageFloat, CV_32FC1, 1.0 / 255.0);
+    greyImg.convertTo(grayImageFloat, CV_32FC1, 1.0 / 255.0);
 
-    cv::Mat grayImageDft;
-
-    computeDft(grayImageFloat, grayImageDft);
-    showDft(grayImageDft);
+    cv::Mat imgDft;
+    computeDft(grayImageFloat, imgDft);
+    showDft(imgDft);
 
     cv::Mat invertedDft;
-    invertDft(grayImageDft, invertedDft);
+    invertDft(imgDft, invertedDft);
     cv::imshow("inverted dft", invertedDft);
     cv::waitKey();
 }

@@ -1,9 +1,8 @@
 #include <opencv2/opencv.hpp>
-
 #include "kinect.h"
 
 void createGaussian(cv::Size& size, cv::Mat& output, int uX, int uY,
-    float sigmaX, float sigmaY, float amplitude = 1.0f)
+                    float sigmaX, float sigmaY, float amplitude = 1.0f)
 {
     cv::Mat temp = cv::Mat(size, CV_32F);
     for (int r = 0; r < size.height; r++) {
@@ -18,40 +17,34 @@ void createGaussian(cv::Size& size, cv::Mat& output, int uX, int uY,
     }
 }
 
-int main(int argc, char* argv[])
+int main()
 {
-    /** initialize kinect */
-    const std::string IMAGE = "./output/scene.png";
+    // initialize kinect
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+
+    // get k4a image and dims
+    uint8_t* color_image_data = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
     int rgbWidth = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
     int rgbHeight = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
 
-    /** get image from kinect */
-    uint8_t* color_image_data = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
+    // clone and convert to OpenCV Mat
+    cv::Mat img = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void*)color_image_data,
+                          cv::Mat::AUTO_STEP).clone();
 
-    /** release resources */
+    // release k4a resources
     sptr_kinect->release();
 
-    /** cast to cv::Mat */
-    cv::Mat img = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void*)color_image_data,
-        cv::Mat::AUTO_STEP);
-
-    /** write image */
+    // write image
+    const std::string IMAGE = "./scene.png";
     cv::imwrite(IMAGE, img);
 
-    /** load grey-scale image */
+    // load image in grey scale
     cv::Mat grayImage = cv::imread(IMAGE, cv::IMREAD_GRAYSCALE);
-    // *img from kinect needs to be cast into a cv color image, i.e.,
-    // into a 3 channel image first before using split. Not casting it
-    // before using split will cause a seg fault.
 
-    //  actual gaussian computation starts here:
-    //
+    //  do gaussian computation
     cv::Mat output;
     cv::Size s = cv::Size(256, 256);
-
     createGaussian(s, output, 256 / 2, 256 / 2, 10, 10, 1.0f);
     cv::imshow("gaussian", output);
-
     cv::waitKey();
 }

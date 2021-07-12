@@ -1,5 +1,4 @@
 #include <opencv2/opencv.hpp>
-
 #include "kinect.h"
 
 int main()
