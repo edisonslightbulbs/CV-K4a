@@ -214,7 +214,7 @@ Kinect::Kinect()
     capture();
 
     /** openCV calibration using the kinect */
-    openCVKinectCalibration();
+    //openCVKinectCalibration();
 }
 
 

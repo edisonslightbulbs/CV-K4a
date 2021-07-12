@@ -15,4 +15,4 @@ cd "$PROJECT_DIR" || return
 
 mkdir -p ./output
 rm -rf ./output/*.*
-./build/bin/CVKinect --logtostderr=1
+./build/bin/cv-k4a --logtostderr=1
