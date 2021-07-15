@@ -1,139 +1,90 @@
 // #include <iostream>
 //
 // int main(){
-//     std::cout << "-- have a look the examples directory for code examples! " << std::endl;
-//     std::cout << "-- have a look the build/bin directory for the binaries! " << std::endl;
+//     std::cout << "-- have a look the examples directory for code examples! "
+//     << std::endl; std::cout << "-- have a look the build/bin directory for
+//     the binaries! " << std::endl;
 // }
-#include <chrono>
-#include <thread>
 #include <iostream>
+#include <opencv2/aruco.hpp>
 #include <opencv2/opencv.hpp>
+#include <thread>
 
-#include "kinect.h"
+#include "../examples/07/parameters.h"
 #include "aruco.h"
-#include "chessboard.h"
-#include "parameters.h"
+#include "kinect.h"
 
-void calibrate(std::vector<cv::Mat> calibrationImages,
-               const cv::Size& boardSize, float squareEdgeLength, cv::Mat& cameraMatrix,
-               cv::Mat& distanceCoefficients)
+#define READING_CALIBRATION_PARAMETERS 4
+#define FINDING_ARUCO_MARKERS 5
+
+void usage(const int& code)
 {
-    std::vector<std::vector<cv::Point2f>> checkerboardImageSpacePoints;
+    switch (code) {
+    case (4):
+        std::cout << "-- loading calibration parameters from disk" << std::endl;
+        break;
+    case (5):
+        std::cout << "-- searching for aruco markers" << std::endl;
+        break;
+    default:
+        std::cout << "-- well now, wasn't expecting that one bit" << std::endl;
+        break;
+    }
+}
 
-    chessboard::findCorners(
-            calibrationImages, checkerboardImageSpacePoints, false);
-
-    std::vector<std::vector<cv::Point3f>> worldSpaceCornersPoints(1);
-
-    chessboard::findEdges(
-            boardSize, squareEdgeLength, worldSpaceCornersPoints[0]);
-
-    worldSpaceCornersPoints.resize(
-            checkerboardImageSpacePoints.size(), worldSpaceCornersPoints[0]);
-
-    std::vector<cv::Mat> rVectors, tVectors;
-    distanceCoefficients = cv::Mat::zeros(8, 1, CV_64F);
-
-    cv::calibrateCamera(worldSpaceCornersPoints, checkerboardImageSpacePoints,
-                        boardSize, cameraMatrix, distanceCoefficients, rVectors, tVectors);
+cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
+{
+    sptr_kinect->getFrame(RGB_TO_DEPTH);
+    uint8_t* data = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
+    sptr_kinect->release();
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP);
 }
 
 int main()
 {
-    cv::Mat distanceCoefficients;
-    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-    const cv::Size chessboardDimensions = cv::Size(9, 6);
-
-    cv::Mat frame;
-    cv::Mat drawToFrame;
-
-    std::vector<cv::Mat> savedImages;
-    std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
-
-    /** initialize kinect */
+    // initialize kinect and get image dimensions
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
-    int rgbWidth = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
-    int rgbHeight = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
 
-    /** defined frames per second */
-    const int fps = 20;
+    // setup camera matrix and initialize coefficients
+    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+    cv::Mat coefficients;
 
-    /** create named window */
+    // initialize named window and frames for superimposing
     cv::namedWindow("kinect", cv::WINDOW_AUTOSIZE);
+    cv::Mat frame, frameCopy;
 
-    bool done = false;
-    std::cout << "INSTRUCTIONS:" << std::endl;
-    std::cout << "-- press ENTER to take images" << std::endl;
-    std::cout << "-- be sure to take a minimum of 20 calibration  images" << std::endl;
-    std::cout << "-- press ESCAPE to exit calibration image capture mode" << std::endl;
+    usage(READING_CALIBRATION_PARAMETERS);
+    parameters::read("calibration.txt", cameraMatrix, coefficients);
+    usage(FINDING_ARUCO_MARKERS);
 
-    while (!done) {
-        /** get next frame from kinect */
-        sptr_kinect->getFrame(RGB_TO_DEPTH);
+    std::vector<int> markerIds;
+    std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCorners;
 
-        /** get image from kinect */
-        uint8_t* color_image_data
-                = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
+    cv::Ptr<cv::aruco::Dictionary> markerDictionary
+        = cv::aruco::getPredefinedDictionary(
+            cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
 
-        /** release resources */
-        sptr_kinect->release();
+    std::vector<cv::Vec3d> rVectors, tVectors;
+    while (true) {
+        frame = grabFrame(sptr_kinect);
+        cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGB);
+        cv::aruco::detectMarkers(
+            frame, markerDictionary, markerCorners, markerIds);
+        cv::aruco::estimatePoseSingleMarkers(markerCorners,
+            aruco::arucoSquareDimension, cameraMatrix, coefficients, rVectors,
+            tVectors);
 
-        /** cast to cv::Mat */
-        frame = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void*)color_image_data,
-                        cv::Mat::AUTO_STEP);
-
-        /** find corners */
-        std::vector<cv::Point2f> foundPoints;
-        bool found;
-        found = cv::findChessboardCorners(frame, chessboardDimensions,
-                                          foundPoints,
-                                          cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
-        frame.copyTo(drawToFrame);
-
-        /** if found,  draw them */
-        cv::drawChessboardCorners(
-                drawToFrame, chessboardDimensions, foundPoints, found);
-
-        if (found) {
-            cv::imshow("kinect", drawToFrame);
-        } else {
-            cv::imshow("kinect", frame);
+        // draw axis on detected marker
+        for (int i = 0; i < markerIds.size(); i++) {
+            cv::aruco::drawAxis(frame, cameraMatrix, coefficients, rVectors[i],
+                tVectors[i], 0.1f);
         }
-        int key = cv::waitKey(1000 / fps);
 
-        switch (key) {
-            case 13:
-                /** save image */
-                if (found) {
-                    cv::Mat temp;
-                    frame.copyTo(temp);
-                    savedImages.emplace_back(temp);
-                    std::cout << "-- current number of images: " << savedImages.size()
-                              << std::endl;
-                }
-                break;
-
-            case 27:
-                /** calibrate */
-                if (savedImages.size() > 15) {
-                    std::cout << "-- computing intrinsic parameters" << std::endl;
-                    calibrate(savedImages, chessboardDimensions,
-                              chessboard::calibrationSquareDimension, cameraMatrix,
-                              distanceCoefficients);
-                    parameters::write(
-                            "calibration.txt", cameraMatrix, distanceCoefficients);
-                    done = true;
-                } else {
-                    std::cout << "-- take more images from different angles for better results" << std::endl;
-                }
-            default:
-                break;
-        }
+        // show frame
+        cv::imshow("kinect", frame);
+        if (cv::waitKey(30) >= 0)
+            break;
     }
-
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    parameters::read("calibration.txt", cameraMatrix, distanceCoefficients);
-    aruco::find(cameraMatrix, distanceCoefficients, aruco::arucoSquareDimension);
-
-    return 0;
 }
