@@ -57,7 +57,7 @@ find_package(gflags REQUIRED)
 ## message(" found OpenCV libraries:     " ${OpenCV_LIBS})
 ## message(" found OpenCV include dir: " ${OpenCV_INCLUDE_DIRS})
 
-# add_subdirectory(examples)
+add_subdirectory(examples)
 
 # main project include paths
 set(SRC_DIR ${PROJECT_DIR}/src)

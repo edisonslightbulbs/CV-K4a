@@ -2,3 +2,6 @@
 	path = external/Azure-Kinect-Sensor-SDK
 	url = https://github.com/microsoft/Azure-Kinect-Sensor-SDK.git
     ignore = dirty
+[submodule "libs/calibration"]
+	path = libs/calibration
+	url = git@github.com:edisonslightbulbs/calibration.git
