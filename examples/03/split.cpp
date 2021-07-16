@@ -1,5 +1,5 @@
-#include <opencv2/opencv.hpp>
 #include "kinect.h"
+#include <opencv2/opencv.hpp>
 
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
@@ -10,7 +10,7 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
     int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
-    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP);
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
 }
 
 int main()

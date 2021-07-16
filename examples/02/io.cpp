@@ -1,5 +1,5 @@
-#include <opencv2/opencv.hpp>
 #include "kinect.h"
+#include <opencv2/opencv.hpp>
 
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
@@ -10,7 +10,7 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
     int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
-    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP);
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
 }
 
 int main()
@@ -32,7 +32,7 @@ int main()
     for (int r = 0; r < greyImg.rows; r++) {
         for (int c = 0; c < greyImg.cols; c++) {
             greyImgMod.at<uint8_t>(r, c)
-                    = (unsigned char)(greyImgMod.at<uint8_t>(r, c) * 0.5);
+                = (unsigned char)(greyImgMod.at<uint8_t>(r, c) * 0.5);
         }
     }
 
@@ -44,7 +44,7 @@ int main()
     for (int r = 0; r < rgbImg.rows; r++) {
         for (int c = 0; c < rgbImg.cols; c++) {
             rgbImgMod.at<cv::Vec3b>(r, c)[0]
-                    = rgbImgMod.at<cv::Vec3b>(r, c)[0] * 0;
+                = rgbImgMod.at<cv::Vec3b>(r, c)[0] * 0;
         }
     }
 

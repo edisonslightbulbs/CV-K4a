@@ -1,8 +1,8 @@
-#include <opencv2/opencv.hpp>
 #include "kinect.h"
+#include <opencv2/opencv.hpp>
 
 void createGaussian(cv::Size& size, cv::Mat& output, int uX, int uY,
-                    float sigmaX, float sigmaY, float amplitude = 1.0f)
+    float sigmaX, float sigmaY, float amplitude = 1.0f)
 {
     cv::Mat temp = cv::Mat(size, CV_32F);
     for (int r = 0; r < size.height; r++) {
@@ -26,9 +26,8 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
     int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
-    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP);
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
 }
-
 
 int main()
 {

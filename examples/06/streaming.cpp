@@ -13,9 +13,8 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
     int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
-    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP);
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
 }
-
 
 int main()
 {
@@ -29,7 +28,7 @@ int main()
         if (cv::waitKey(1000 / 20) >= 0) {
             break;
         }
-        std::this_thread::sleep_for(std::chrono::microseconds (2));
+        std::this_thread::sleep_for(std::chrono::microseconds(2));
     }
     return 0;
 }
