@@ -6,46 +6,7 @@
 #include "chessboard.h"
 #include "kinect.h"
 #include "parameters.h"
-
-#define CHESSBOARD_IMAGES 0
-#define COMPUTING_CALIBRATION_PARAMETERS 1
-#define MORE_CHESSBOARD_IMAGES_REQUIRED 2
-#define WRITING_CALIBRATION_PARAMETERS 3
-#define READING_CALIBRATION_PARAMETERS 4
-#define FINDING_ARUCO_MARKERS 5
-
-#define ENTER_KEY 13
-#define ESCAPE_KEY 27
-
-void usage(const int& code)
-{
-    switch (code) {
-    case (0):
-        std::cout << "INSTRUCTIONS:" << std::endl;
-        std::cout << "-- press ENTER to take images" << std::endl;
-        std::cout << "-- to at least 20 chessboard images" << std::endl;
-        std::cout << "-- press ESCAPE to exit capture mode" << std::endl;
-        break;
-    case (1):
-        std::cout << "-- computing calibration parameters" << std::endl;
-        break;
-    case (2):
-        std::cout << "-- take more chessboard images" << std::endl;
-        break;
-    case (3):
-        std::cout << "-- saving calibration parameters to disk" << std::endl;
-        break;
-    case (4):
-        std::cout << "-- loading calibration parameters from disk" << std::endl;
-        break;
-    case (5):
-        std::cout << "-- searching for aruco markers" << std::endl;
-        break;
-    default:
-        std::cout << "-- well now, wasn't expecting that one bit" << std::endl;
-        break;
-    }
-}
+#include "usage.h"
 
 void calibrate(std::vector<cv::Mat> targetImgs, const cv::Size& boardSize,
     float squareEdgeLength, cv::Mat& cameraMatrix, cv::Mat& coefficients)
@@ -93,7 +54,7 @@ int main()
     const cv::Size chessboardDim = cv::Size(9, 6);
 
     // prompt user with usage caveat
-    usage(CHESSBOARD_IMAGES);
+    usage::prompt(CHESSBOARD_IMAGES);
 
     // prompt user with usage caveat
     std::vector<cv::Mat> chessboardImgs;
@@ -138,17 +99,17 @@ int main()
 
         case ESCAPE_KEY:
             if (chessboardImgs.size() > 15) {
-                usage(COMPUTING_CALIBRATION_PARAMETERS);
+                usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
                 calibrate(chessboardImgs, chessboardDim,
-                    chessboard::calibrationSquareDimension, cameraMatrix,
+                    chessboard::CHESSBOARD_SQUARE_DIMENSION, cameraMatrix,
                     coefficients);
-                usage(WRITING_CALIBRATION_PARAMETERS);
+                usage::prompt(WRITING_CALIBRATION_PARAMETERS);
                 parameters::write(
                     "calibration.txt", cameraMatrix, coefficients);
                 std::this_thread::sleep_for(std::chrono::seconds(5));
                 done = true;
             } else {
-                usage(MORE_CHESSBOARD_IMAGES_REQUIRED);
+                usage::prompt(MORE_CHESSBOARD_IMAGES_REQUIRED);
             }
         default:
             break;
