@@ -4,31 +4,29 @@
 
 #include "kinect.h"
 
-const int fps = 20;
+cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
+{
+    sptr_kinect->capture();
+    sptr_kinect->imgCapture();
+    uint8_t* data = k4a_image_get_buffer(sptr_kinect->m_img);
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_img);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
+    sptr_kinect->releaseK4aCapture();
+    sptr_kinect->releaseK4aImages();
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP);
+}
+
+
 int main()
 {
     // initialize kinect
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
-    int rgbWidth = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
-    int rgbHeight = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
 
     while (true) {
-        // capture
-        sptr_kinect->getFrame(RGB_TO_DEPTH);
-
-        // get capture
-        uint8_t* color_image_data
-                = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
-
-        //
-        sptr_kinect->release();
-
-        // to cv::Mat
-        cv::Mat frame = cv::Mat(rgbHeight, rgbWidth, CV_8UC4,
-                                (void*)color_image_data, cv::Mat::AUTO_STEP);
+        cv::Mat frame = grabFrame(sptr_kinect);
 
         cv::imshow("kinect", frame);
-        if (cv::waitKey(1000 / fps) >= 0) {
+        if (cv::waitKey(1000 / 20) >= 0) {
             break;
         }
         std::this_thread::sleep_for(std::chrono::microseconds (2));

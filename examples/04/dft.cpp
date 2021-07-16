@@ -74,22 +74,24 @@ void invertDft(cv::Mat& source, cv::Mat& destination)
     destination = inverse;
 }
 
+cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
+{
+    sptr_kinect->capture();
+    sptr_kinect->imgCapture();
+    uint8_t* data = k4a_image_get_buffer(sptr_kinect->m_img);
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_img);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
+    sptr_kinect->releaseK4aCapture();
+    sptr_kinect->releaseK4aImages();
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP);
+}
+
 int main()
 {
     // initialize kinect
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
 
-    // get k4a image and dims
-    uint8_t* color_image_data = k4a_image_get_buffer(sptr_kinect->m_rgbImage);
-    int rgbWidth = k4a_image_get_width_pixels(sptr_kinect->m_rgbImage);
-    int rgbHeight = k4a_image_get_height_pixels(sptr_kinect->m_rgbImage);
-
-    // clone and convert to OpenCV Mat
-    cv::Mat img = cv::Mat(rgbHeight, rgbWidth, CV_8UC4, (void*)color_image_data,
-                          cv::Mat::AUTO_STEP).clone();
-
-    // release k4a resources
-    sptr_kinect->release();
+    cv::Mat img = grabFrame(sptr_kinect);
 
     // write image
     const std::string IMAGE = "./scene.png";
