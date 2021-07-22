@@ -7,13 +7,81 @@
 //     std::endl;
 // }
 
-#include "homography.h"
+#include <chrono>
 #include <opencv2/opencv.hpp>
+#include <thread>
+
+#include "kinect.h"
+
+#define WIDTH 1366
+#define HEIGHT 768
+#define TO_PROJECTOR_DISPLAY cv::moveWindow(WINDOW, 3000, 0)
+
+cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
+{
+    sptr_kinect->capture();
+    sptr_kinect->imgCapture();
+    uint8_t* data = k4a_image_get_buffer(sptr_kinect->m_img);
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_img);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
+    sptr_kinect->releaseK4aCapture();
+    sptr_kinect->releaseK4aImages();
+    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
+}
+
+cv::Mat contrastBackground(const bool& contrast){
+    // create black and white images
+    cv::Mat black(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
+    cv::Mat white(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(255, 255, 255));
+
+    if (contrast){
+       return white;
+    } else {
+        return black;
+    }
+}
 
 int main()
 {
-    cv::Mat backgroundImg, foregroundImg;
-    backgroundImg = cv::imread("resources/background.png", cv::IMREAD_COLOR);
-    foregroundImg = cv::imread("resources/foreground.png", cv::IMREAD_COLOR);
-    homography::initialize(backgroundImg, foregroundImg);
+    // initialize kinect
+    std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+
+    // create full screen window
+    const std::string WINDOW = "TRACELESS";
+    cv::namedWindow(WINDOW, cv::WINDOW_NORMAL);
+    cv::setWindowProperty(WINDOW, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+
+    // background and background + projection
+    std::vector<cv::Mat> background;
+
+    // background contrast flag
+    bool contrast = false;
+
+    while (true) {
+        cv::Mat img = contrastBackground(contrast);
+        cv::imshow(WINDOW, img);
+        TO_PROJECTOR_DISPLAY;
+
+        // toggle contrast flag every second
+        if (cv::waitKey(1000) >= 0) {
+            break;
+        }
+        contrast = !contrast;
+
+        // grab current contrast
+        cv::Mat frame = grabFrame(sptr_kinect);
+        background.emplace_back(frame);
+        if(background.size() == 2){
+            break;
+        }
+    }
+
+
+    // background subtraction
+    // find projection boundary
+    // save boundary
+    // use boundary with kinect images
+    // start calibration
+
+    return 0;
 }
