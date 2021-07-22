@@ -8,3 +8,6 @@
 [submodule "libs/kinect-k4a"]
 	path = libs/kinect-k4a
 	url = git@github.com:edisonslightbulbs/kinect-k4a.git
+[submodule "libs/homography"]
+	path = libs/homography
+	url = git@github.com:edisonslightbulbs/homography.git

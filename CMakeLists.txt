@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.11)
 project(cv-k4a)
 
-set(CMAKE_CXX_STANDARD 20)
-
 # optimization for dev environments
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -18,8 +16,6 @@ set(CMAKE_CXX_FLAGS "-pthread")
 list(APPEND CMAKE_MODULE_PATH "$ENV{CMAKE_MODULE_PATH}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-option(BUILD_SHARED_LIBS "Build Shared Library" ON)           # default ON
-
 # set path variables
 set(PROJECT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
@@ -27,12 +23,7 @@ set(BIN_DIR ${PROJECT_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${BIN_DIR})
 
-# build options
-option(EXECUTE_TARGET "Execute Project Target" ON)                 # default OFF
-option(BUILD_SHARED_LIBS "Build Shared Library" ON)                # default ON
-option(OPTIMIZE_PROJECT "Tidy up and optimize source code" OFF)    # default OFF
-option(INITIALIZE_K4A_SDK "Initialize the kinect SDK project" OFF) # default ON <- use for initializing Kinect SDK
-
+option(OPTIMIZE_PROJECT "Tidy up and optimize source code" OFF) # default OFF
 if(OPTIMIZE_PROJECT)
     if(UNIX AND NOT APPLE)
         set(CMAKE_CXX_CLANG_TIDY
@@ -54,17 +45,17 @@ find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
-## message(" found OpenCV libraries:     " ${OpenCV_LIBS})
-## message(" found OpenCV include dir: " ${OpenCV_INCLUDE_DIRS})
+option(BUILD_EXAMPLES "Build example" OFF) # default ON
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
 
-add_subdirectory(examples)
-
-# main project include paths
+# project paths
 set(SRC_DIR ${PROJECT_DIR}/src)
 set(EXT_DIR ${PROJECT_DIR}/external)
 set(LIBS_DIR ${PROJECT_DIR}/libs)
 
-# initialize Azure-Kinect-Sensor-SDK submodule project
+option(INITIALIZE_K4A_SDK "Initialize the kinect SDK project" OFF) # default ON
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
     if(INITIALIZE_K4A_SDK)
         execute_process(
@@ -79,21 +70,7 @@ set(K4A_LIBRARY ${K4A_SDK}/build)
 set(K4A_VERSION ${K4A_SDK}/build/src/sdk/include)
 set(K4A_INCLUDE ${K4A_SDK}/include)
 
-# setup libtorch
-option(SETUP_LIBTORCH "Setup libtorch" OFF)
-if(SETUP_LIBTORCH)
-    execute_process(
-        COMMAND /bin/bash ./scripts/get_libtorch.sh
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
-endif()
-set(CMAKE_PREFIX_PATH ${EXT_DIR}/libtorch)
-set(CMAKE_CXX_FLAGS
-    ${CMAKE_CXX_FLAGS}
-    ${TORCH_CXX_FLAGS}
-    )
-find_package(Torch REQUIRED)
-
-# find headers
+# find header directories
 set (INCLUDE_DIRS "")
 file(GLOB_RECURSE HEADERS
     ${LIBS_DIR}/*.h
@@ -104,19 +81,19 @@ foreach (HEADER ${HEADERS})
 endforeach()
 list(REMOVE_DUPLICATES INCLUDE_DIRS)
 
-# find src
+# find src files
 file(GLOB_RECURSE LIBS_SRC
     ${LIBS_DIR}/*.cpp
     )
 
-# set-up target
+# add executable
 add_executable(cv-k4a
     ${EXT_SRC}
     ${LIBS_SRC}
     ${SRC_DIR}/main.cpp
     )
 
-# set-up target include directories
+# include directories
 target_include_directories(cv-k4a PRIVATE
     ${OpenCV_INCLUDE_DIRS}
     ${K4A_VERSION}
@@ -129,11 +106,10 @@ target_link_libraries(cv-k4a
     ${OpenCV_LIBS}
     glog
     gflags
-    ${TORCH_LIBRARIES}
     ${K4A_LIBRARY}/bin/libk4a.so
     )
 
-# link libraries
+option(EXECUTE_TARGET "Execute post build" ON) # default OFF
 if(EXECUTE_TARGET)
     add_custom_command(TARGET cv-k4a
         POST_BUILD
