@@ -4,7 +4,7 @@ cmake-build-debug/
 
 *.write
 *.csv
-*.png
+#*.png
 *.ply
 *.log
 external/
