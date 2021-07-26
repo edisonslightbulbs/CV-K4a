@@ -1,30 +1,20 @@
-#include <chrono>
-#include <iostream>
-#include <opencv2/opencv.hpp>
-#include <thread>
-
-#include "chessboard.h"
-#include "kinect.h"
-#include "parameters.h"
-#include "usage.h"
-
-void calibrate(std::vector<cv::Mat> targetImgs, const cv::Size& boardSize,
-    float squareEdgeLength, cv::Mat& cameraMatrix, cv::Mat& coefficients)
+void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
+    float blockLength, cv::Mat& cameraMatrix, cv::Mat& coefficients)
 {
     std::vector<cv::Mat> rVectors, tVectors;
-    std::vector<std::vector<cv::Point2f>> imagespaceSquareEdges;
+    std::vector<std::vector<cv::Point2f>> imageSpaceCorners;
     std::vector<std::vector<cv::Point3f>> worldSpaceSquareCorners(1);
 
-    chessboard::findSquareCorners(targetImgs, imagespaceSquareEdges, false);
-    chessboard::findSquareEdges(
-        boardSize, squareEdgeLength, worldSpaceSquareCorners[0]);
+    chessboard::findImageSpaceCorners(images, imageSpaceCorners, false);
+    chessboard::findWorldSpaceCorners(
+        boardSize, blockLength, worldSpaceSquareCorners[0]);
 
     worldSpaceSquareCorners.resize(
-        imagespaceSquareEdges.size(), worldSpaceSquareCorners[0]);
+        imageSpaceCorners.size(), worldSpaceSquareCorners[0]);
     coefficients = cv::Mat::zeros(8, 1, CV_64F);
 
-    cv::calibrateCamera(worldSpaceSquareCorners, imagespaceSquareEdges,
-        boardSize, cameraMatrix, coefficients, rVectors, tVectors);
+    cv::calibrateCamera(worldSpaceSquareCorners, imageSpaceCorners, boardSize,
+        cameraMatrix, coefficients, rVectors, tVectors);
 }
 
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
@@ -103,7 +93,7 @@ int main()
             if (chessboardImgs.size() > 15) {
                 usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
                 calibrate(chessboardImgs, chessboardDim,
-                    chessboard::CHESSBOARD_SQUARE_DIMENSION, cameraMatrix,
+                    chessboard::PHYSICAL_BOARD_BLOCK_LENGTH, cameraMatrix,
                     coefficients);
                 usage::prompt(WRITING_CALIBRATION_PARAMETERS);
                 parameters::write(
