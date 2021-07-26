@@ -8,3 +8,4 @@ cmake-build-debug/
 *.ply
 *.log
 external/
+.cache/
