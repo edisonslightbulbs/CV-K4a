@@ -53,78 +53,78 @@ int main()
     cv::setWindowProperty(CHESSBOARD_WINDOW, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
 
     std::vector<cv::Point2f> corners;
-    cv::Size imgSize = cv::Size(800, 600);
-    cv::Size boardSize = cv::Size(9, 6);
+    cv::Size imgSize = cv::Size(600, 800);
+    cv::Size boardSize = cv::Size(6, 9);
     cv::Mat chessboard = chessboard::generate(imgSize, boardSize, corners);
 
-    // project chessboard
-    cv::imshow(CHESSBOARD_WINDOW, chessboard);
-    cv::moveWindow(CHESSBOARD_WINDOW, 3000, 0);
-    cv::waitKey(30);
+    // // project chessboard
+    // cv::imshow(CHESSBOARD_WINDOW, chessboard);
+    // cv::moveWindow(CHESSBOARD_WINDOW, 3000, 0);
+    // cv::waitKey(30000);
 
-    // initialize calibration window and calibration images
-    const std::string CALIBRATION_WINDOW = "calibration";
-    cv::namedWindow(CALIBRATION_WINDOW, cv::WINDOW_AUTOSIZE);
-    cv::Mat frame, frameCopy;
+    // // initialize calibration window and calibration images
+    // const std::string CALIBRATION_WINDOW = "calibration";
+    // cv::namedWindow(CALIBRATION_WINDOW, cv::WINDOW_AUTOSIZE);
+    // cv::Mat frame, frameCopy;
 
-    // specify chessboard dimensions
-    const cv::Size chessboardDim = cv::Size(8, 5);
+    // // specify chessboard dimensions
+    // const cv::Size chessboardDim = cv::Size(8, 5);
 
-    // prompt user
-    usage::prompt(CHESSBOARD_IMAGES);
+    // // prompt user
+    // usage::prompt(CHESSBOARD_IMAGES);
 
-    // find corners in camera space images
-    std::vector<cv::Mat> chessboardImgs;
-    bool chessboardCornersFound;
-    bool done = false;
-    while (!done) {
-        frame = grabFrame(sptr_kinect);
+    // // find corners in camera space images
+    // std::vector<cv::Mat> chessboardImgs;
+    // bool chessboardCornersFound;
+    // bool done = false;
+    // while (!done) {
+    //     frame = grabFrame(sptr_kinect);
 
-        std::vector<cv::Point2f> chessboardCorners;
-        chessboardCornersFound
-                = cv::findChessboardCorners(frame, chessboardDim, chessboardCorners,
-                                            cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+    //     std::vector<cv::Point2f> chessboardCorners;
+    //     chessboardCornersFound
+    //             = cv::findChessboardCorners(frame, chessboardDim, chessboardCorners,
+    //                                         cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
 
-        // clone frame then draw on and superimpose clone
-        frame.copyTo(frameCopy);
-        cv::drawChessboardCorners(frameCopy, chessboardDim, chessboardCorners,
-                                  chessboardCornersFound);
+    //     // clone frame then draw on and superimpose clone
+    //     frame.copyTo(frameCopy);
+    //     cv::drawChessboardCorners(frameCopy, chessboardDim, chessboardCorners,
+    //                               chessboardCornersFound);
 
-        if (chessboardCornersFound) {
-            cv::imshow(CALIBRATION_WINDOW, frameCopy);
-        } else {
-            cv::imshow(CALIBRATION_WINDOW, frame);
-        }
+    //     if (chessboardCornersFound) {
+    //         cv::imshow(CALIBRATION_WINDOW, frameCopy);
+    //     } else {
+    //         cv::imshow(CALIBRATION_WINDOW, frame);
+    //     }
 
-        int key = cv::waitKey(30);
-        switch (key) {
-            case ENTER_KEY:
-                if (chessboardCornersFound) {
-                    cv::Mat temp;
-                    frame.copyTo(temp);
-                    chessboardImgs.emplace_back(temp);
-                    std::cout << "-- # images : " << chessboardImgs.size()
-                              << std::endl;
-                }
-                break;
+    //     int key = cv::waitKey(30);
+    //     switch (key) {
+    //         case ENTER_KEY:
+    //             if (chessboardCornersFound) {
+    //                 cv::Mat temp;
+    //                 frame.copyTo(temp);
+    //                 chessboardImgs.emplace_back(temp);
+    //                 std::cout << "-- # images : " << chessboardImgs.size()
+    //                           << std::endl;
+    //             }
+    //             break;
 
-            case ESCAPE_KEY:
-                if (chessboardImgs.size() > 15) {
-                    usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
-                    calibrate(chessboardImgs, chessboardDim,
-                              chessboard::PHYSICAL_BOARD_BLOCK_LENGTH, cameraMatrix,
-                              coefficients);
-                    usage::prompt(WRITING_CALIBRATION_PARAMETERS);
-                    parameters::write(
-                            "calibration.txt", cameraMatrix, coefficients);
-                    std::this_thread::sleep_for(std::chrono::seconds(5));
-                    done = true;
-                } else {
-                    usage::prompt(MORE_CHESSBOARD_IMAGES_REQUIRED);
-                }
-            default:
-                break;
-        }
-    }
+    //         case ESCAPE_KEY:
+    //             if (chessboardImgs.size() > 15) {
+    //                 usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
+    //                 calibrate(chessboardImgs, chessboardDim,
+    //                           chessboard::PHYSICAL_BOARD_BLOCK_LENGTH, cameraMatrix,
+    //                           coefficients);
+    //                 usage::prompt(WRITING_CALIBRATION_PARAMETERS);
+    //                 parameters::write(
+    //                         "calibration.txt", cameraMatrix, coefficients);
+    //                 std::this_thread::sleep_for(std::chrono::seconds(5));
+    //                 done = true;
+    //             } else {
+    //                 usage::prompt(MORE_CHESSBOARD_IMAGES_REQUIRED);
+    //             }
+    //         default:
+    //             break;
+    //     }
+    // }
     return 0;
 }
