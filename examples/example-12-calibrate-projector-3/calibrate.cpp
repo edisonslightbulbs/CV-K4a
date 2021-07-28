@@ -47,13 +47,29 @@ int main()
     cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat coefficients;
 
-    // initialize window and calibration frames
+    // initialize chessboard window and chessboard images
+    const std::string CHESSBOARD_WINDOW = "chessboard";
+    cv::namedWindow(CHESSBOARD_WINDOW, cv::WINDOW_NORMAL);
+    cv::setWindowProperty(
+        CHESSBOARD_WINDOW, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+
+    std::vector<cv::Point2f> corners;
+    cv::Size imgSize = cv::Size(800, 600);
+    cv::Size boardSize = cv::Size(9, 6);
+    cv::Mat chessboard = chessboard::generate(imgSize, boardSize, corners);
+
+    // project chessboard
+    cv::imshow(CHESSBOARD_WINDOW, chessboard);
+    cv::moveWindow(CHESSBOARD_WINDOW, 3000, 0);
+    cv::waitKey(30);
+
+    // initialize calibration window and calibration images
     const std::string CALIBRATION_WINDOW = "calibration";
     cv::namedWindow(CALIBRATION_WINDOW, cv::WINDOW_AUTOSIZE);
     cv::Mat frame, frameCopy;
 
     // specify chessboard dimensions
-    const cv::Size chessboardDim = cv::Size(9, 6);
+    const cv::Size chessboardDim = cv::Size(8, 5);
 
     // prompt user
     usage::prompt(CHESSBOARD_IMAGES);
