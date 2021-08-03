@@ -8,25 +8,24 @@
 #include "usage.h"
 
 void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
-    float blockLength, cv::Mat& cameraMatrix, cv::Mat& coefficients)
+    float blockLength, cv::Mat& cameraMatrix, cv::Mat& k)
 {
     std::vector<cv::Mat> rVectors, tVectors;
     std::vector<std::vector<cv::Point2f>> imageSpaceCorners;
-    std::vector<std::vector<cv::Point3f>> worldSpaceSquareCorners(1);
+    std::vector<std::vector<cv::Point3f>> worldSpaceCorners(1);
 
-    chessboard::findCameraSpaceCorners(images, imageSpaceCorners, false);
-    chessboard::findWorldSpaceCorners(
-        boardSize, blockLength, worldSpaceSquareCorners[0]);
+    chessboard::findImageSpaceCorners(images, imageSpaceCorners, false);
+    chessboard::findWorldSpaceCorners(boardSize, blockLength, worldSpaceCorners[0]);
 
-    worldSpaceSquareCorners.resize(
-        imageSpaceCorners.size(), worldSpaceSquareCorners[0]);
-    coefficients = cv::Mat::zeros(8, 1, CV_64F);
+    worldSpaceCorners.resize(
+        imageSpaceCorners.size(), worldSpaceCorners[0]);
+    k = cv::Mat::zeros(8, 1, CV_64F);
 
     // cv::calibrateCamera()
     // returns (i) camera matrix, (ii) distortion coefficients, (iii) rotation
     // matrix & (iv) translation matrix.
-    cv::calibrateCamera(worldSpaceSquareCorners, imageSpaceCorners, boardSize,
-        cameraMatrix, coefficients, rVectors, tVectors);
+    cv::calibrateCamera(worldSpaceCorners, imageSpaceCorners, boardSize,
+        cameraMatrix, k, rVectors, tVectors);
 }
 
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
@@ -51,7 +50,7 @@ int main()
     cv::Mat coefficients;
 
     // initialize calibration window chessboard image frames
-    const std::string CALIBRATION_WINDOW = "calibration";
+    const std::string CALIBRATION_WINDOW = "calibration window";
     cv::namedWindow(CALIBRATION_WINDOW, cv::WINDOW_AUTOSIZE);
     cv::Mat frame, frameCopy;
 

@@ -1,30 +1,50 @@
-#include <chrono>
+#ifndef CAMERA_H
+#define CAMERA_H
+
+#include <opencv2/calib3d.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
-#include <thread>
+#include <vector>
 
 #include "chessboard.h"
 #include "kinect.h"
 #include "parameters.h"
 #include "usage.h"
 
-void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
-               float blockLength, cv::Mat& cameraMatrix, cv::Mat& coefficients)
-{
-    std::vector<cv::Mat> rVectors, tVectors;
-    std::vector<std::vector<cv::Point2f>> imageSpaceCorners;
-    std::vector<std::vector<cv::Point3f>> worldSpaceSquareCorners(1);
+class Camera {
 
-    chessboard::findImageSpaceCorners(images, imageSpaceCorners, false);
-    chessboard::findWorldSpaceCorners(
-            boardSize, blockLength, worldSpaceSquareCorners[0]);
+private:
+public:
+    void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
+                   float blockLength)
+    {
+        // todo we find world space points in a different way for projector calibration
+        // chessboard::findWorldSpaceCorners( boardSize, blockLength, m_worldSpaceCorners[0]);
 
-    worldSpaceSquareCorners.resize(
-            imageSpaceCorners.size(), worldSpaceSquareCorners[0]);
-    coefficients = cv::Mat::zeros(8, 1, CV_64F);
+        m_worldSpaceCorners.resize( m_imageSpaceCorners.size(), m_worldSpaceCorners[0]);
 
-    cv::calibrateCamera(worldSpaceSquareCorners, imageSpaceCorners, boardSize,
-                        cameraMatrix, coefficients, rVectors, tVectors);
-}
+        cv::calibrateCamera(m_worldSpaceCorners, m_imageSpaceCorners, boardSize,
+                            m_matrix, m_k, m_rVectors, m_tVectors);
+    }
+
+    cv::Mat m_k;
+    cv::Mat m_matrix;
+    std::vector<cv::Mat> m_rVectors;
+    std::vector<cv::Mat> m_tVectors;
+
+    std::vector<cv::Point2f> m_cameraSpaceCorners;
+    //std::vector<std::vector<cv::Point2f>> m_imageSpaceCorners;
+    std::vector<cv::Point2f> m_imageSpaceCorners;
+    std::vector<std::vector<cv::Point3f>> m_worldSpaceCorners;
+
+    Camera()
+    {
+        m_k = cv::Mat::zeros(8, 1, CV_64F);
+        m_matrix = cv::Mat::eye(3, 3, CV_64F);
+        m_worldSpaceCorners = std::vector<std::vector<cv::Point3f>>(1);
+    };
+};
+#endif // CAMERA_H
 
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
@@ -38,34 +58,26 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
     return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
 }
 
-int main()
+int calibrateCamera()
 {
+    // create camera object
+    Camera camera;
+
     // initialize kinect
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
 
-    // setup camera matrix and calibration parameters
-    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat coefficients;
-
     // initialize chessboard window and chessboard images
-    const std::string CHESSBOARD_WINDOW = "chessboard";
+    const std::string CHESSBOARD_WINDOW = "virtual chessboard";
     cv::namedWindow(CHESSBOARD_WINDOW, cv::WINDOW_NORMAL);
-    cv::setWindowProperty(
-            CHESSBOARD_WINDOW, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-
-    std::vector<cv::Point2f> imageSpaceCorners;
-    cv::Size imgSize = cv::Size(1080, 720);
+    cv::setWindowProperty( CHESSBOARD_WINDOW, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
     cv::Size boardSize = cv::Size(9, 6);
-    cv::Mat chessboard
-            = chessboard::create(imgSize, boardSize, imageSpaceCorners);
-
-    // project chessboard
+    cv::Size imgSize = cv::Size(1080, 720);
+    cv::Mat chessboard = chessboard::create(imgSize, boardSize, camera.m_imageSpaceCorners);
     cv::imshow(CHESSBOARD_WINDOW, chessboard);
     cv::moveWindow(CHESSBOARD_WINDOW, 3000, 0);
-    // cv::waitKey(30000);
 
     // initialize calibration window and calibration images
-    const std::string CALIBRATION_WINDOW = "calibration";
+    const std::string CALIBRATION_WINDOW = "calibration window";
     cv::namedWindow(CALIBRATION_WINDOW, cv::WINDOW_AUTOSIZE);
     cv::Mat frame, frameCopy;
 
@@ -76,24 +88,23 @@ int main()
     usage::prompt(USAGE);
 
     // find corners in camera space images
+    std::vector<cv::Mat> chessboardImages;
     bool found;
-    std::vector<cv::Mat> cameraImages;
 
     // start calibration process
     bool done = false;
     while (!done) {
         frame = grabFrame(sptr_kinect);
 
-        // find corners in camera' chessboard image
-        std::vector<cv::Point2f> cameraSpaceCorners;
+        // find corners in camera camera space
         found = cv::findChessboardCorners(frame, chessboardDim,
-                                          cameraSpaceCorners,
+                                          camera.m_cameraSpaceCorners,
                                           cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
 
         // copy camera's chessboard image and draw on found corners
         frame.copyTo(frameCopy);
         cv::drawChessboardCorners(
-                frameCopy, chessboardDim, cameraSpaceCorners, found);
+                frameCopy, chessboardDim, camera.m_cameraSpaceCorners, found);
 
         // ... if corners found
         if (found) {
@@ -113,22 +124,21 @@ int main()
                 if (found) {
                     cv::Mat temp;
                     frame.copyTo(temp);
-                    cameraImages.emplace_back(temp);
-                    std::cout << "-- # images : " << cameraImages.size()
+                    chessboardImages.emplace_back(temp);
+                    std::cout << "-- # images : " << chessboardImages.size()
                               << std::endl;
                 }
                 break;
 
                 // on escape keypress: exit calibration application
             case ESCAPE_KEY:
-                if (cameraImages.size() > 15) {
+                if (chessboardImages.size() > 15) {
                     usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
-                    calibrate(cameraImages, chessboardDim,
-                              chessboard::PROJECTED_BOARD_BLOCK_WIDTH, cameraMatrix,
-                              coefficients);
+                    camera.calibrate(chessboardImages, chessboardDim,
+                                     chessboard::PROJECTED_BOARD_BLOCK_WIDTH);
                     usage::prompt(WRITING_CALIBRATION_PARAMETERS);
                     parameters::write(
-                            "calibration.txt", cameraMatrix, coefficients);
+                            "calibration.txt", camera.m_matrix, camera.m_k);
                     std::this_thread::sleep_for(std::chrono::seconds(5));
                     done = true;
                 } else {
@@ -138,5 +148,4 @@ int main()
                 break;
         }
     }
-    return 0;
 }
