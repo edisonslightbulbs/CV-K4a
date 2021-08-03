@@ -1,4 +1,5 @@
-add_subdirectory(example-01-basic)
+add_subdirectory(example-00-transform)
+add_subdirectory(example-01-show)
 add_subdirectory(example-02-io)
 add_subdirectory(example-03-split)
 add_subdirectory(example-04-dft)
