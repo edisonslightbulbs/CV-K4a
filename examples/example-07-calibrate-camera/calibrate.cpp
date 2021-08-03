@@ -14,7 +14,7 @@ void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
     std::vector<std::vector<cv::Point2f>> imageSpaceCorners;
     std::vector<std::vector<cv::Point3f>> worldSpaceSquareCorners(1);
 
-    chessboard::findImageSpaceCorners(images, imageSpaceCorners, false);
+    chessboard::findCameraSpaceCorners(images, imageSpaceCorners, false);
     chessboard::findWorldSpaceCorners(
         boardSize, blockLength, worldSpaceSquareCorners[0]);
 
@@ -22,6 +22,9 @@ void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
         imageSpaceCorners.size(), worldSpaceSquareCorners[0]);
     coefficients = cv::Mat::zeros(8, 1, CV_64F);
 
+    // cv::calibrateCamera()
+    // returns (i) camera matrix, (ii) distortion coefficients, (iii) rotation
+    // matrix & (iv) translation matrix.
     cv::calibrateCamera(worldSpaceSquareCorners, imageSpaceCorners, boardSize,
         cameraMatrix, coefficients, rVectors, tVectors);
 }
@@ -67,7 +70,7 @@ int main()
     while (!done) {
         frame = grabFrame(sptr_kinect);
 
-        // find corners in camera' chessboard image
+        // find corners in camera space
         std::vector<cv::Point2f> cameraSpaceCorners;
         found = cv::findChessboardCorners(frame, chessboardDim,
             cameraSpaceCorners,
