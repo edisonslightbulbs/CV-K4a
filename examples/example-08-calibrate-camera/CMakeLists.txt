@@ -1,4 +1,4 @@
-project(calibrate-projector-1)
+project(calibrate-camera)
 
 # main project include paths
 set(ROOT ${CMAKE_SOURCE_DIR})
@@ -38,14 +38,14 @@ file(GLOB_RECURSE LIBS_SRC
     )
 
 # add target
-add_executable(calibrate-projector-1
+add_executable(calibrate-camera
     ${EXT_SRC}
     ${LIBS_SRC}
     calibrate.cpp
     )
 
 # target includes
-target_include_directories(calibrate-projector-1 PRIVATE
+target_include_directories(calibrate-camera PRIVATE
     ${OpenCV_INCLUDE_DIRS}
     ${K4A_VERSION}
     ${K4A_INCLUDE}
@@ -53,7 +53,7 @@ target_include_directories(calibrate-projector-1 PRIVATE
     )
 
 # link libraries
-target_link_libraries(calibrate-projector-1
+target_link_libraries(calibrate-camera
     ${OpenCV_LIBS}
     glog
     gflags

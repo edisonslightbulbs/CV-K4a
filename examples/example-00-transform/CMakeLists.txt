@@ -1,4 +1,4 @@
-project(calibrate)
+project(transform)
 
 # main project include paths
 set(ROOT ${CMAKE_SOURCE_DIR})
@@ -38,14 +38,14 @@ file(GLOB_RECURSE LIBS_SRC
     )
 
 # add target
-add_executable(calibrate
+add_executable(transform
     ${EXT_SRC}
     ${LIBS_SRC}
-    calibrate.cpp
+    transform.cpp
     )
 
 # target includes
-target_include_directories(calibrate PRIVATE
+target_include_directories(transform PRIVATE
     ${OpenCV_INCLUDE_DIRS}
     ${K4A_VERSION}
     ${K4A_INCLUDE}
@@ -53,7 +53,7 @@ target_include_directories(calibrate PRIVATE
     )
 
 # link libraries
-target_link_libraries(calibrate
+target_link_libraries(transform
     ${OpenCV_LIBS}
     glog
     gflags
