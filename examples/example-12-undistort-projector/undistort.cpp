@@ -3,8 +3,8 @@
 #include <thread>
 
 #include "chessboard.h"
+#include "file.h"
 #include "kinect.h"
-#include "parameters.h"
 #include "usage.h"
 
 void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
