@@ -3,8 +3,8 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 
+#include "file.h"
 #include "kinect.h"
-#include "parameters.h"
 #include "usage.h"
 
 #include <opencv2/aruco.hpp>
