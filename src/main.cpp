@@ -13,7 +13,7 @@ bool calibrateCamera(
         usage::prompt(CALIBRATING);
         camera.calibrate(dChessboard, chessboard::R_BLOCK_WIDTH);
         usage::prompt(SAVING_PARAMETERS);
-        parameters::write(file, camera.m_matrix, camera.m_K);
+        parameters::write(file, camera.m_K, camera.m_distortionCoefficients);
         done = true;
     } else {
         usage::prompt(MORE_IMAGES_REQUIRED);
