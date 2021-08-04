@@ -3,8 +3,8 @@
 #include <thread>
 
 #include "chessboard.h"
+#include "file.h"
 #include "kinect.h"
-#include "parameters.h"
 #include "usage.h"
 
 void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
@@ -15,10 +15,10 @@ void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
     std::vector<std::vector<cv::Point3f>> worldSpaceCorners(1);
 
     chessboard::findImageSpaceCorners(images, imageSpaceCorners, false);
-    chessboard::findWorldSpaceCorners(boardSize, blockLength, worldSpaceCorners[0]);
+    chessboard::findWorldSpaceCorners(
+        boardSize, blockLength, worldSpaceCorners[0]);
 
-    worldSpaceCorners.resize(
-        imageSpaceCorners.size(), worldSpaceCorners[0]);
+    worldSpaceCorners.resize(imageSpaceCorners.size(), worldSpaceCorners[0]);
     k = cv::Mat::zeros(8, 1, CV_64F);
 
     // cv::calibrateCamera()
