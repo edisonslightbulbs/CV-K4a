@@ -82,7 +82,38 @@ public:
 };
 #endif // CAMERA_H
 
-void overlayCorners(const cv::Mat& src, cv::Mat dst,
+bool calibrateCamera(Camera& camera, std::vector<cv::Mat>& chessboardImages,
+    const cv::Size& dChessboard)
+{
+    bool done = false;
+    if (chessboardImages.size() > 15) {
+        usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
+        camera.calibrate(
+            chessboardImages, dChessboard, chessboard::R_BLOCK_WIDTH);
+        usage::prompt(WRITING_CALIBRATION_PARAMETERS);
+        parameters::write(
+            "./output/calibration/camera.txt", camera.m_matrix, camera.m_K);
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        done = true;
+    } else {
+        usage::prompt(MORE_CHESSBOARD_IMAGES_REQUIRED);
+    }
+    return done;
+}
+
+void getChessboardImage(
+    const bool& pass, cv::Mat& src, std::vector<cv::Mat>& chessboardImages)
+{
+    if (pass) {
+        cv::Mat temp;
+        src.copyTo(temp);
+        chessboardImages.emplace_back(temp);
+        int imgCount = (int)chessboardImages.size();
+        std::cout << "-- # images: " << imgCount << std::endl;
+    }
+}
+
+bool overlayCorners(const cv::Mat& src, cv::Mat dst,
     const cv::Size& dChessboard, const std::string& window)
 {
     std::vector<cv::Point2f> corners;
@@ -95,9 +126,8 @@ void overlayCorners(const cv::Mat& src, cv::Mat dst,
     } else {
         cv::imshow(window, src);
     }
+    return found;
 }
-
-#define SHOW 1
 
 int main()
 {
@@ -118,42 +148,18 @@ int main()
 
     while (!done) {
         src = grabFrame(sptr_kinect);
+        bool pass = overlayCorners(src, dst, dChessboard, WINDOW);
 
-#if SHOW == 1
-        overlayCorners(src, dst, dChessboard, WINDOW);
-#endif
-
-        // // // processes user input
         int key = cv::waitKey(30);
-        //  switch (key) {
-        // // on enter keypress: get camera image
-        // case ENTER_KEY:
-        //     if (cornersFound) {
-        //         cv::Mat temp;
-        //         src.copyTo(temp);
-        //         chessboardImages.emplace_back(temp);
-        //         std::cout << "-- # images : "
-        //                   <<chessboardImages.size() << std::endl;
-        //     }
-        //     break;
-
-        //     // on escape keypress: exit calibration application
-        // case ESCAPE_KEY:
-        //     if (chessboardImages.size() > 15) {
-        //         usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
-        //         camera.calibrate(chessboardImages, dChessboard,
-        //                          chessboard::R_BLOCK_WIDTH);
-        //         usage::prompt(WRITING_CALIBRATION_PARAMETERS);
-        //         parameters::write("./output/calibration/camera.txt",
-        //             camera.m_matrix, camera.m_K);
-        //         std::this_thread::sleep_for(std::chrono::seconds(5));
-        //         done = true;
-        //     } else {
-        //         usage::prompt(MORE_CHESSBOARD_IMAGES_REQUIRED);
-        //     }
-        // default:
-        //     break;
-        // }
+        switch (key) {
+        case ENTER_KEY: // capture chessboard images
+            getChessboardImage(pass, src, chessboardImages);
+            break;
+        case ESCAPE_KEY: // start calibration
+            done = calibrateCamera(camera, chessboardImages, dChessboard);
+        default:
+            break;
+        }
     }
     return 0;
 }
