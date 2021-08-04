@@ -2,7 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 
-#include "chessboard.h"
+#include "camera.h"
 #include "kinect.h"
 #include "parameters.h"
 #include "usage.h"
@@ -33,6 +33,21 @@ public:
     std::vector<std::vector<cv::Point3f>> m_worldSpaceCorners;
     std::vector<std::vector<cv::Point2f>> m_imageSpaceCorners;
 
+    void findCameraSpaceCorners(std::vector<cv::Mat>& images,
+        std::vector<std::vector<cv::Point2f>>& corners)
+    {
+        for (auto& image : images) {
+            std::vector<cv::Point2f> corner;
+            bool found = cv::findChessboardCorners(image, cv::Size(9, 6),
+                corner,
+                cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+
+            if (found) {
+                corners.emplace_back(corner);
+            }
+        }
+    }
+
     /**
      * Evaluates the R (rotation) , t (translation), camera matrix,
      * & K (distance coefficients).
@@ -47,7 +62,7 @@ public:
     void calibrate(std::vector<cv::Mat> images, const cv::Size& boardSize,
         float blockWidth)
     {
-        chessboard::findImageSpaceCorners(images, m_imageSpaceCorners, false);
+        findCameraSpaceCorners(images, m_imageSpaceCorners);
         chessboard::findWorldSpaceCorners(
             boardSize, blockWidth, m_worldSpaceCorners[0]);
 
@@ -67,81 +82,78 @@ public:
 };
 #endif // CAMERA_H
 
+void overlayCorners(const cv::Mat& src, cv::Mat dst,
+    const cv::Size& dChessboard, const std::string& window)
+{
+    std::vector<cv::Point2f> corners;
+    bool found = cv::findChessboardCorners(src, dChessboard, corners,
+        cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+    if (found) {
+        src.copyTo(dst);
+        cv::drawChessboardCorners(dst, dChessboard, corners, found);
+        cv::imshow(window, dst);
+    } else {
+        cv::imshow(window, src);
+    }
+}
+
+#define SHOW 1
+
 int main()
 {
-    // initialize camera
+    // initialize camera, window, and images
     Camera camera;
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
 
-    // create window and images
-    const std::string CALIBRATION_WINDOW = "calibration window";
-    cv::namedWindow(CALIBRATION_WINDOW, cv::WINDOW_AUTOSIZE);
-    cv::Mat src, dst;
+    const std::string WINDOW = "calibration window";
+    cv::namedWindow(WINDOW, cv::WINDOW_AUTOSIZE);
 
-    // define chessboard dimensions
-    const cv::Size dChessboard = cv::Size(9, 6);
+    cv::Mat src, dst;
     std::vector<cv::Mat> chessboardImages;
+    const cv::Size dChessboard = cv::Size(9, 6);
 
     // start calibration
     bool done = false;
-    bool cornersFound;
     usage::prompt(USAGE);
 
     while (!done) {
         src = grabFrame(sptr_kinect);
 
-        // find corners in camera space
-        camera.m_cameraSpaceCorners.clear();
-        cornersFound = cv::findChessboardCorners(src, dChessboard,
-                                                 camera.m_cameraSpaceCorners,
-            cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE);
+#if SHOW == 1
+        overlayCorners(src, dst, dChessboard, WINDOW);
+#endif
 
-        // copy camera's chessboard image and draw on discovered corners
-        src.copyTo(dst);
-        cv::drawChessboardCorners(
-                dst, dChessboard, camera.m_cameraSpaceCorners, cornersFound);
-
-        // ... if corners found
-        if (cornersFound) {
-            // ... show chessboard image with highlighted corners
-            cv::imshow(CALIBRATION_WINDOW, dst);
-        } else {
-            // ... show non-highlighted chessboard image
-            cv::imshow(CALIBRATION_WINDOW, src);
-        }
-
-        // processes user input
+        // // // processes user input
         int key = cv::waitKey(30);
-        switch (key) {
+        //  switch (key) {
+        // // on enter keypress: get camera image
+        // case ENTER_KEY:
+        //     if (cornersFound) {
+        //         cv::Mat temp;
+        //         src.copyTo(temp);
+        //         chessboardImages.emplace_back(temp);
+        //         std::cout << "-- # images : "
+        //                   <<chessboardImages.size() << std::endl;
+        //     }
+        //     break;
 
-        // on enter keypress: get camera image
-        case ENTER_KEY:
-            if (cornersFound) {
-                cv::Mat temp;
-                src.copyTo(temp);
-                chessboardImages.emplace_back(temp);
-                std::cout << "-- # images : "
-                          <<chessboardImages.size() << std::endl;
-            }
-            break;
-
-            // on escape keypress: exit calibration application
-        case ESCAPE_KEY:
-            if (chessboardImages.size() > 15) {
-                usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
-                camera.calibrate(chessboardImages, dChessboard,
-                                 chessboard::R_BLOCK_WIDTH);
-                usage::prompt(WRITING_CALIBRATION_PARAMETERS);
-                parameters::write("./output/calibration/camera.txt",
-                    camera.m_matrix, camera.m_K);
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-                done = true;
-            } else {
-                usage::prompt(MORE_CHESSBOARD_IMAGES_REQUIRED);
-            }
-        default:
-            break;
-        }
+        //     // on escape keypress: exit calibration application
+        // case ESCAPE_KEY:
+        //     if (chessboardImages.size() > 15) {
+        //         usage::prompt(COMPUTING_CALIBRATION_PARAMETERS);
+        //         camera.calibrate(chessboardImages, dChessboard,
+        //                          chessboard::R_BLOCK_WIDTH);
+        //         usage::prompt(WRITING_CALIBRATION_PARAMETERS);
+        //         parameters::write("./output/calibration/camera.txt",
+        //             camera.m_matrix, camera.m_K);
+        //         std::this_thread::sleep_for(std::chrono::seconds(5));
+        //         done = true;
+        //     } else {
+        //         usage::prompt(MORE_CHESSBOARD_IMAGES_REQUIRED);
+        //     }
+        // default:
+        //     break;
+        // }
     }
     return 0;
 }
