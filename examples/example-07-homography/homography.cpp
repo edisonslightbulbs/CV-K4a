@@ -5,17 +5,18 @@
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "file.h"
 #include "kinect.h"
-#include "parameters.h"
 #include "usage.h"
 
 const float arucoSquareDimension = 0.0565f;
 
-void create4x4Markers() {
+void create4x4Markers()
+{
     cv::Mat outputMarker;
     cv::Ptr<cv::aruco::Dictionary> markerDictionary
-            = cv::aruco::getPredefinedDictionary(
-                    cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
+        = cv::aruco::getPredefinedDictionary(
+            cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
     for (int i = 0; i < 50; i++) {
         cv::aruco::drawMarker(markerDictionary, i, 500, outputMarker, 1);
         std::ostringstream convert;
