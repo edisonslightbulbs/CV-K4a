@@ -45,7 +45,7 @@ find_package(glog REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(gflags REQUIRED)
 
-option(BUILD_EXAMPLES "Build example" ON) # default ON
+option(BUILD_EXAMPLES "Build example" OFF) # default ON
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
