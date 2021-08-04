@@ -1,29 +1,10 @@
-#include <chrono>
-#include <iostream>
+#include <opencv2/aruco.hpp>
+#include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
-#include <thread>
 
 #include "file.h"
 #include "kinect.h"
 #include "usage.h"
-
-#include <opencv2/aruco.hpp>
-#include <opencv2/core.hpp>
-
-void create4x4Markers()
-{
-    cv::Mat outputMarker;
-    cv::Ptr<cv::aruco::Dictionary> markerDictionary
-        = cv::aruco::getPredefinedDictionary(
-            cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
-    for (int i = 0; i < 50; i++) {
-        cv::aruco::drawMarker(markerDictionary, i, 500, outputMarker, 1);
-        std::ostringstream convert;
-        std::string imageName = "4x4Marker_";
-        convert << imageName << i << ".jpg";
-        cv::imwrite(convert.str(), outputMarker);
-    }
-}
 
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
@@ -39,49 +20,48 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 
 int main()
 {
-    // initialize kinect and get image dimensions
+    // initialize camera
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
 
-    // setup camera matrix and initialize coefficients
-    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat coefficients;
+    // initialize camera matrix and distortion coefficients
+    cv::Mat K = cv::Mat::eye(3, 3, CV_64F);
+    cv::Mat distortionCoefficients;
 
-    // initialize named window and frames for superimposing
-    cv::namedWindow("kinect", cv::WINDOW_AUTOSIZE);
-    cv::Mat frame, frameCopy;
+    // setup images and window
+    cv::Mat src;
+    std::string window = "World full of markers";
+    cv::namedWindow(window, cv::WINDOW_AUTOSIZE);
 
     usage::prompt(LOADING_CALIBRATION_PARAMETERS);
-    parameters::read("calibration.txt", cameraMatrix, coefficients);
-    usage::prompt(FINDING_ARUCO_MARKERS);
+    std::string file = "./output/calibration/samples/camera.txt";
+    parameters::read(file, K, distortionCoefficients);
 
+    usage::prompt(FINDING_ARUCO_MARKERS);
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCorners;
-
     cv::Ptr<cv::aruco::Dictionary> markerDictionary
         = cv::aruco::getPredefinedDictionary(
             cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
 
-    // measurement of square side in meters
-    const float ARUCO_SQUARE_DIMENSION = 0.0565f;
+    const float ARUCO_BLOCK_WIDTH = 0.0565f;
+    std::vector<cv::Vec3d> R, t;
 
-    std::vector<cv::Vec3d> rVectors, tVectors;
     while (true) {
-        frame = grabFrame(sptr_kinect);
-        cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGB);
+        src = grabFrame(sptr_kinect);
+        cv::cvtColor(src, src, cv::COLOR_BGRA2RGB);
         cv::aruco::detectMarkers(
-            frame, markerDictionary, markerCorners, markerIds);
-        cv::aruco::estimatePoseSingleMarkers(markerCorners,
-            ARUCO_SQUARE_DIMENSION, cameraMatrix, coefficients, rVectors,
-            tVectors);
+            src, markerDictionary, markerCorners, markerIds);
+        cv::aruco::estimatePoseSingleMarkers(
+            markerCorners, ARUCO_BLOCK_WIDTH, K, distortionCoefficients, R, t);
 
         // draw axis on detected marker
         for (int i = 0; i < markerIds.size(); i++) {
-            cv::aruco::drawAxis(frame, cameraMatrix, coefficients, rVectors[i],
-                tVectors[i], 0.1f);
+            cv::aruco::drawAxis(
+                src, K, distortionCoefficients, R[i], t[i], 0.1f);
         }
 
         // show frame
-        cv::imshow("kinect", frame);
+        cv::imshow(window, src);
 
         int key = cv::waitKey(30);
         if (key == 27)
