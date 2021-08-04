@@ -1,12 +1,11 @@
 #include <iostream>
+#include <opencv2/calib3d.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
-#include <opencv2/calib3d.hpp>
 
+#include "file.h"
 #include "kinect.h"
-#include "parameters.h"
 #include "usage.h"
-
 
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
@@ -28,7 +27,8 @@ int main()
     // initialize resources
     const std::string INPUT = "un-distorting: input image";
     const std::string OUTPUT = "un-distorting: output image";
-    const std::string CAMERA_PARAMETERS = "./output/calibration/camera/calibration.txt";
+    const std::string CAMERA_PARAMETERS
+        = "./output/calibration/camera/calibration.txt";
 
     cv::namedWindow(INPUT, cv::WINDOW_AUTOSIZE);
     cv::namedWindow(OUTPUT, cv::WINDOW_AUTOSIZE);
@@ -38,7 +38,7 @@ int main()
     cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
     usage::prompt(LOADING_CALIBRATION_PARAMETERS);
 
-    parameters::read( CAMERA_PARAMETERS, cameraMatrix, k);
+    parameters::read(CAMERA_PARAMETERS, cameraMatrix, k);
 
     src = grabFrame(sptr_kinect);
     cv::Size dSize = cv::Size(src.rows, src.cols);
@@ -48,7 +48,8 @@ int main()
      *   - alpha=1 returns undistorted image retaining black-image patches?
      */
     int alpha = 1;
-    newCameraMatrix = cv::getOptimalNewCameraMatrix(cameraMatrix, k, dSize, alpha, dSize);
+    newCameraMatrix
+        = cv::getOptimalNewCameraMatrix(cameraMatrix, k, dSize, alpha, dSize);
     cv::undistort(src, dst, cameraMatrix, k, newCameraMatrix);
 
     // todo: crop iff necessary
