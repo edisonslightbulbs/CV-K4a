@@ -5,10 +5,10 @@
 #define KNN_MODEL cv::createBackgroundSubtractorKNN()
 
 void writeScene(std::vector<cv::Mat> scene){
-    const std::string file_0 = "./output/scene/white.png";
-    const std::string file_1 = "./output/scene/black.png";
+    const std::string file_0 = "./output/scene/black.png";
+    const std::string file_1 = "./output/scene/white.png";
     cv::imwrite(file_0, scene[0]);
-    cv::imwrite(file_1, scene[0]);
+    cv::imwrite(file_1, scene[1]);
 }
 
 cv::Mat contrastBackground(const bool& contrast, const int& w, const int& h){
@@ -52,7 +52,7 @@ void flicker(std::shared_ptr<Kinect>& sptr_kinect, const std::string& window, co
         cv::Mat img = contrastBackground(contrast, w, h);
         cv::imshow(window, img);
         cv::moveWindow(window, 3000, 0);
-        if (cv::waitKey(1000) >= 0) {
+        if (cv::waitKey(2000) >= 0) {
             break;
         }
 
@@ -62,7 +62,7 @@ void flicker(std::shared_ptr<Kinect>& sptr_kinect, const std::string& window, co
         contrast = !contrast;
 
         if(scene.size() == 2){
-            cv::waitKey(500);
+            cv::waitKey(1000);
             break;
         }
     }
