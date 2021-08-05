@@ -1,10 +1,10 @@
-#include <opencv2/opencv.hpp>
 #include "kinect.h"
+#include <opencv2/opencv.hpp>
 
 void computeDft(cv::Mat& source, cv::Mat& destination)
 {
     cv::Mat grayImageComplex[2]
-            = { source, cv::Mat::zeros(source.size(), CV_32F) };
+        = { source, cv::Mat::zeros(source.size(), CV_32F) };
 
     cv::Mat dft;
     cv::Mat grayImageDft;
@@ -41,7 +41,7 @@ void recenterDft(cv::Mat& source)
 void showDft(cv::Mat& source)
 {
     cv::Mat splitChannel[2] = { cv::Mat::zeros(source.size(), CV_32F),
-                                cv::Mat::zeros(source.size(), CV_32F) };
+        cv::Mat::zeros(source.size(), CV_32F) };
 
     cv::split(source, splitChannel);
 
@@ -70,7 +70,7 @@ void invertDft(cv::Mat& source, cv::Mat& destination)
 {
     cv::Mat inverse;
     cv::dft(source, inverse,
-            cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT | CV_HAL_DFT_SCALE);
+        cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT | CV_HAL_DFT_SCALE);
     destination = inverse;
 }
 
@@ -78,12 +78,17 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
     sptr_kinect->capture();
     sptr_kinect->imgCapture();
-    uint8_t* data = k4a_image_get_buffer(sptr_kinect->m_img);
+    uint8_t* rgbData = k4a_image_get_buffer(sptr_kinect->m_img);
     int w = k4a_image_get_width_pixels(sptr_kinect->m_img);
     int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
+
+    cv::Mat frame
+        = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
+
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
-    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
+
+    return frame;
 }
 
 int main()
