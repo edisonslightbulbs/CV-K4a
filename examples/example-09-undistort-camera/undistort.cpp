@@ -7,13 +7,23 @@
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
     sptr_kinect->capture();
+    sptr_kinect->depthCapture();
+    sptr_kinect->pclCapture();
     sptr_kinect->imgCapture();
-    uint8_t* data = k4a_image_get_buffer(sptr_kinect->m_img);
-    int w = k4a_image_get_width_pixels(sptr_kinect->m_img);
-    int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
+    sptr_kinect->c2dCapture();
+    sptr_kinect->transform(RGB_TO_DEPTH);
+
+    auto* rgbData = k4a_image_get_buffer(sptr_kinect->m_c2d);
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_c2d);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_c2d);
+
+    cv::Mat frame
+        = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
+
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
-    return cv::Mat(h, w, CV_8UC4, (void*)data, cv::Mat::AUTO_STEP).clone();
+
+    return frame;
 }
 
 int main()
