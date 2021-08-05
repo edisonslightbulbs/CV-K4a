@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include  "pcloud.h"
+#include "pcloud.h"
 
 #define PLY_HEADER                                                             \
     std::ofstream ofs(file);                                                   \
@@ -19,7 +19,6 @@
     ofs << "property uchar blue" << std::endl;                                 \
     ofs << "end_header" << std::endl;                                          \
     ofs.close()
-
 
 std::vector<t_rgbd> pcloud::retrieve(const int& w, const int& h,
     const int16_t* pCloudData, const uint8_t* rgbData)
@@ -52,6 +51,27 @@ void pcloud::write(const int& w, const int& h, const int16_t* pCloudData,
 {
     std::vector<t_rgbd> pCloud = retrieve(w, h, pCloudData, rgbData);
 
+    PLY_HEADER;
+    std::stringstream ss;
+    for (auto& point : pCloud) {
+        int16_t x = point.xyz[0];
+        int16_t y = point.xyz[1];
+        int16_t z = point.xyz[2];
+
+        // k4a color image is in fact BGR (not RGB)
+        auto r = (float)point.rgb[2];
+        auto g = (float)point.rgb[1];
+        auto b = (float)point.rgb[0];
+
+        ss << x << " " << y << " " << z << " ";
+        ss << r << " " << g << " " << b << std::endl;
+    }
+    std::ofstream ofs_text(file, std::ios::out | std::ios::app);
+    ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
+}
+
+void pcloud::write(const std::vector<t_rgbd>& pCloud, const std::string& file)
+{
     PLY_HEADER;
     std::stringstream ss;
     for (auto& point : pCloud) {
