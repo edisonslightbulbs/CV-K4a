@@ -1,28 +1,8 @@
+#include "scene.h"
 #include <opencv2/opencv.hpp>
+
+#if __linux__
 #include "kinect.h"
-
-#define MOG2_MODEL cv::createBackgroundSubtractorMOG2()
-#define KNN_MODEL cv::createBackgroundSubtractorKNN()
-
-void writeScene(std::vector<cv::Mat> scene){
-    const std::string file_0 = "./output/scene/black.png";
-    const std::string file_1 = "./output/scene/white.png";
-    cv::imwrite(file_0, scene[0]);
-    cv::imwrite(file_1, scene[1]);
-}
-
-cv::Mat contrastBackground(const bool& contrast, const int& w, const int& h){
-    // create black and white images
-    cv::Mat black(h, w, CV_8UC3, cv::Scalar(0, 0, 0));
-    cv::Mat white(h, w, CV_8UC3, cv::Scalar(255, 255, 255));
-
-    if (contrast){
-        return white;
-    } else {
-        return black;
-    }
-}
-
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
     sptr_kinect->capture();
@@ -37,83 +17,64 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
     int h = k4a_image_get_height_pixels(sptr_kinect->m_c2d);
 
     cv::Mat frame
-            = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
+        = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
 
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
 
     return frame;
 }
-
-void flicker(std::shared_ptr<Kinect>& sptr_kinect, const std::string& window, const int& w, const int& h, std::vector<cv::Mat>& scene){
-    bool contrast = false;
-    while (true) {
-        // show black | white images for a second
-        cv::Mat img = contrastBackground(contrast, w, h);
-        cv::imshow(window, img);
-        cv::moveWindow(window, 3000, 0);
-        if (cv::waitKey(2000) >= 0) {
-            break;
-        }
-
-        // capture scene
-        cv::Mat frame = grabFrame(sptr_kinect);
-        scene.emplace_back(frame);
-        contrast = !contrast;
-
-        if(scene.size() == 2){
-            cv::waitKey(1000);
-            break;
-        }
-    }
-}
+#endif
 
 int main()
 {
+    std::vector<cv::Mat> scene(2);
+
+#if __linux__
     // initialize kinect
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+#endif
 
-    // create full screen window for scene
-    const int w = 1366;
-    const int h = 768;
-    std::vector<cv::Mat> scene;
-    std::string window = "TRACELESS";
-    cv::namedWindow(window, cv::WINDOW_NORMAL);
-    cv::setWindowProperty(window, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+#if __linux__
+    scene::flicker(sptr_kinect, window, w, h, scene);
+    scene::write(scene);
+#endif
 
-    // flicker projector
-    flicker(sptr_kinect, window, w, h, scene);
+#if __APPLE__
+    // load background scene images
+    scene::load(scene);
+#endif
 
-    writeScene(scene);
+    // image subtraction
+    cv::Mat colorDiff, gray_0, gray_1, grayDiff, sharpGray;
+    cv::cvtColor(scene[0], gray_0, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(scene[1], gray_1, cv::COLOR_BGR2GRAY);
+    colorDiff = scene[0] - scene[1];
+    grayDiff = gray_0 - gray_1;
 
-    // create background subtractor: use either MOG2 or KNN
-    cv::Ptr<cv::BackgroundSubtractor> subtractor;
-    subtractor = MOG2_MODEL;
-    cv::Mat frame, gray, mask, diff, thresh;
+    // sharpen gray diff
+    cv::equalizeHist(grayDiff, sharpGray);
 
-    //do background subtraction: using models
-   // frame = scene[1];
-   // mask = scene[0];
-    // subtractor->apply(frame, mask);
-    //show the current frame and the fg masks
-    // imshow("Frame", frame);
-    // imshow("Mask", mask);
+    // remove noise using smoothing
+    cv::Mat blurred, thresholded, roi;
+    cv::Size dBlur = cv::Size(33, 33);
+    cv::GaussianBlur(grayDiff, blurred, dBlur, 0);
 
-    //do background subtraction: using absolute difference
-    cv::absdiff(scene[0], scene[1], diff);
-    cv::imshow("Absolute difference", diff);
+    // threshold to extract flux
+    cv::threshold(
+        blurred, thresholded, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
 
-    // cropping region of interest using
-    cv::cvtColor(diff, gray, cv::COLOR_BGR2GRAY);
-    cv::threshold(gray, thresh, 0, 255, cv::THRESH_OTSU);
-    cv::imshow("Threshold", thresh);
+    // crop region of interest
+    cv::Rect roiBoundary = cv::boundingRect(thresholded);
+    roi = scene[0](roiBoundary);
 
-    cv::Rect roiBoundary = cv::boundingRect(thresh);
-
-    cv::Mat roi = scene[0](roiBoundary);
-    cv::imshow("Cropped", roi);
+    // show results (flux AOE)
+    cv::imshow("Color difference", colorDiff);
+    cv::imshow("Gray difference", grayDiff);
+    cv::imshow("Sharp gray diff", sharpGray);
+    cv::imshow("OTSU threshold", thresholded);
+    cv::imshow("Region of interest", roi);
 
     cv::waitKey();
-
     return 0;
 }
