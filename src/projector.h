@@ -50,6 +50,9 @@ public:
             // overlay chessboard image
             if (found) {
                 m_cameraSpaceCorners.emplace_back(chessboardCorners);
+                // todo: actually, at this point lets retrieve the RGB-D values and
+                //   start plotting and building world space coordinates using 3D
+                //   point clouds
             }
         }
     }
