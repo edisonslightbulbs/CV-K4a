@@ -1,12 +1,32 @@
-#include "aop.h"
-#include "scene.h"
-
 #include <opencv2/opencv.hpp>
 
-#if __linux__
-
+#include "chessboard.h"
+#include "file.h"
 #include "kinect.h"
-cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
+#include "pcloud.h"
+#include "projector.h"
+#include "usage.h"
+
+using t_RGBD = std::pair<cv::Mat, std::vector<t_rgbd>>;
+
+bool calibrationProjector(
+    Projector& projector, const cv::Size& dChessboard, const std::string& file)
+{
+    bool done = false;
+    if (projector.m_RGBDCollection.size() > 15) {
+        usage::prompt(CALIBRATING);
+        projector.calibrate(dChessboard, chessboard::R_BLOCK_WIDTH);
+        usage::prompt(SAVING_PARAMETERS);
+        parameters::write(
+            file, projector.m_K, projector.m_distortionCoefficients);
+        done = true;
+    } else {
+        usage::prompt(MORE_IMAGES_REQUIRED);
+    }
+    return done;
+}
+
+t_RGBD getRGBData(std::shared_ptr<Kinect>& sptr_kinect)
 {
     sptr_kinect->capture();
     sptr_kinect->depthCapture();
@@ -15,46 +35,68 @@ cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
     sptr_kinect->c2dCapture();
     sptr_kinect->transform(RGB_TO_DEPTH);
 
-    auto* rgbData = k4a_image_get_buffer(sptr_kinect->m_c2d);
-    int w = k4a_image_get_width_pixels(sptr_kinect->m_c2d);
-    int h = k4a_image_get_height_pixels(sptr_kinect->m_c2d);
+    // get depth image dimensions
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_depth);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_depth);
 
+    // get synchronous RGB-D captures
+    auto* pCloudData
+        = (int16_t*)(void*)k4a_image_get_buffer(sptr_kinect->m_pcl);
+    auto* rgbData = k4a_image_get_buffer(sptr_kinect->m_c2d);
+
+    const std::string file = "./output/pcloud/3dPCloud.ply";
+    std::vector<t_rgbd> rgbd = pcloud::retrieve(w, h, pCloudData, rgbData);
+    // pcloud::write(rgbdPCloud, file);
     cv::Mat frame
         = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
 
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
 
-    return frame;
+    t_RGBD data = std::make_pair(frame, rgbd);
+
+    // couple frame and point cloud
+    return data;
 }
-#endif
 
 int main()
 {
-    std::vector<cv::Mat> scene(2);
-
-#if __linux__
-    // initialize kinect
+    // initialize image frames and  kinect
+    cv::Mat src, dst;
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
-#endif
 
-#if __linux__
-    scene::flicker(sptr_kinect, window, w, h, scene);
-    scene::write(scene);
-#endif
+    // create projector
+    Projector projector;
 
-#if __APPLE__
-    // load background scene images
-    scene::load(scene);
-#endif
+    // project chessboard
+    cv::Size dChessboard = cv::Size(9, 6);
+    chessboard::project(dChessboard);
 
-    // find area of projection (aop)
-    cv::Rect boundary = aop::find(scene[0], scene[1]);
-    cv::Mat roi = scene[0](boundary);
+    // setup calibration window
+    std::string window = "calibration window";
+    cv::namedWindow(window, cv::WINDOW_AUTOSIZE);
 
-    // show aop
-    cv::imshow("Region of interest", roi);
+    // calibrate projector
+    bool done = false;
+    usage::prompt(USAGE);
+    std::string file = "./output/calibration/projector.txt";
 
-    cv::waitKey();
+    while (!done) {
+        t_RGBD rgbdData = getRGBData(sptr_kinect);
+
+        src = rgbdData.first; // grab image from RGBD
+        bool pass = chessboard::overlay(src, dst, dChessboard, window);
+
+        int key = cv::waitKey(30);
+        switch (key) {
+        case ENTER_KEY: // capture synchronous RGBD
+            chessboard::capture(pass, rgbdData, projector.m_RGBDCollection);
+            break;
+        case ESCAPE_KEY: // start calibration
+            done = calibrationProjector(projector, dChessboard, file);
+        default:
+            break;
+        }
+    }
     return 0;
 }

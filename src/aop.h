@@ -23,6 +23,7 @@ void saturate(const cv::Mat& src, cv::Mat& dst)
 
 cv::Rect find(const cv::Mat& background, const cv::Mat& foreground)
 {
+    // todo: load camera calibration and undistort !!
     // image subtraction
     cv::Mat colorDiff, gray_0, gray_1, grayDiff, sharpGray;
     cv::cvtColor(background, gray_0, cv::COLOR_BGR2GRAY);
