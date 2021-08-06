@@ -62,6 +62,5 @@ void flicker(std::shared_ptr<Kinect>& sptr_kinect, const std::string& window,
     }
 }
 #endif
-
 }
 #endif // SCENE_H
