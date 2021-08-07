@@ -8,7 +8,7 @@
 #include "projector.h"
 #include "usage.h"
 
-using t_RGBD = std::pair<cv::Mat, std::vector<Point>>;
+using t_pCloud = std::pair<cv::Mat, std::vector<Point>>;
 
 bool calibrationProjector(
     Projector& projector, const cv::Size& dChessboard, const std::string& file)
@@ -27,7 +27,7 @@ bool calibrationProjector(
     return done;
 }
 
-t_RGBD getRGBData(std::shared_ptr<Kinect>& sptr_kinect)
+t_pCloud getRGBData(std::shared_ptr<Kinect>& sptr_kinect)
 {
     sptr_kinect->capture();
     sptr_kinect->depthCapture();
@@ -54,7 +54,7 @@ t_RGBD getRGBData(std::shared_ptr<Kinect>& sptr_kinect)
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
 
-    t_RGBD data = std::make_pair(frame, pCloud);
+    t_pCloud data = std::make_pair(frame, pCloud);
 
     // couple frame and point cloud
     return data;
@@ -83,7 +83,7 @@ int main()
     std::string file = "./output/calibration/projector.txt";
 
     while (!done) {
-        t_RGBD rgbdData = getRGBData(sptr_kinect);
+        t_pCloud rgbdData = getRGBData(sptr_kinect);
 
         src = rgbdData.first; // grab image from RGBD
         bool pass = chessboard::overlay(src, dst, dChessboard, window);
