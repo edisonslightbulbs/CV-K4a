@@ -20,25 +20,27 @@
     ofs << "end_header" << std::endl;                                          \
     ofs.close()
 
-std::vector<t_rgbd> pcloud::retrieve(const int& w, const int& h,
-    const int16_t* pCloudData, const uint8_t* rgbData)
+std::vector<Point> pcloud::build(
+    const int& w, const int& h, const int16_t* pCloudData, const uint8_t* bgra)
 {
-    std::vector<t_rgbd> pCloud;
+    std::vector<Point> pCloud;
     for (int i = 0; i < w * h; i++) {
-        t_rgbd point {};
-        point.xyz[0] = pCloudData[3 * i + 0];
-        point.xyz[1] = pCloudData[3 * i + 1];
-        point.xyz[2] = pCloudData[3 * i + 2];
-        if (point.xyz[2] == 0) {
+        Point point {};
+        point.m_xyz[0] = pCloudData[3 * i + 0];
+        point.m_xyz[1] = pCloudData[3 * i + 1];
+        point.m_xyz[2] = pCloudData[3 * i + 2];
+        if (point.m_xyz[2] == 0) {
             continue;
         }
-        point.rgb[0] = rgbData[4 * i + 0];
-        point.rgb[1] = rgbData[4 * i + 1];
-        point.rgb[2] = rgbData[4 * i + 2];
-        uint8_t alpha = rgbData[4 * i + 3];
+        uint8_t r = bgra[4 * i + 2];
+        uint8_t g = bgra[4 * i + 1];
+        uint8_t b = bgra[4 * i + 0];
+        uint8_t a = bgra[4 * i + 3];
+        uint8_t rgba[4] = { r, g, b, a };
+        point.setPixel_RGBA(rgba);
 
-        if (point.rgb[0] == 0 && point.rgb[1] == 0 && point.rgb[2] == 0
-            && alpha == 0) {
+        if (point.m_rgba[0] == 0 && point.m_rgba[1] == 0 && point.m_rgba[2] == 0
+            && point.m_rgba[3] == 0) {
             continue;
         }
         pCloud.push_back(point);
@@ -49,19 +51,19 @@ std::vector<t_rgbd> pcloud::retrieve(const int& w, const int& h,
 void pcloud::write(const int& w, const int& h, const int16_t* pCloudData,
     const uint8_t* rgbData, const std::string& file)
 {
-    std::vector<t_rgbd> pCloud = retrieve(w, h, pCloudData, rgbData);
+    std::vector<Point> pCloud = build(w, h, pCloudData, rgbData);
 
     PLY_HEADER;
     std::stringstream ss;
     for (auto& point : pCloud) {
-        int16_t x = point.xyz[0];
-        int16_t y = point.xyz[1];
-        int16_t z = point.xyz[2];
+        int16_t x = point.m_xyz[0];
+        int16_t y = point.m_xyz[1];
+        int16_t z = point.m_xyz[2];
 
         // k4a color image is in fact BGR (not RGB)
-        auto r = (float)point.rgb[2];
-        auto g = (float)point.rgb[1];
-        auto b = (float)point.rgb[0];
+        auto r = (float)point.m_rgba[2];
+        auto g = (float)point.m_rgba[1];
+        auto b = (float)point.m_rgba[0];
 
         ss << x << " " << y << " " << z << " ";
         ss << r << " " << g << " " << b << std::endl;
@@ -70,19 +72,19 @@ void pcloud::write(const int& w, const int& h, const int16_t* pCloudData,
     ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
-void pcloud::write(const std::vector<t_rgbd>& pCloud, const std::string& file)
+void pcloud::write(const std::vector<Point>& pCloud, const std::string& file)
 {
     PLY_HEADER;
     std::stringstream ss;
     for (auto& point : pCloud) {
-        int16_t x = point.xyz[0];
-        int16_t y = point.xyz[1];
-        int16_t z = point.xyz[2];
+        int16_t x = point.m_xyz[0];
+        int16_t y = point.m_xyz[1];
+        int16_t z = point.m_xyz[2];
 
         // k4a color image is in fact BGR (not RGB)
-        auto r = (float)point.rgb[2];
-        auto g = (float)point.rgb[1];
-        auto b = (float)point.rgb[0];
+        auto r = (float)point.m_rgba[2];
+        auto g = (float)point.m_rgba[1];
+        auto b = (float)point.m_rgba[0];
 
         ss << x << " " << y << " " << z << " ";
         ss << r << " " << g << " " << b << std::endl;
