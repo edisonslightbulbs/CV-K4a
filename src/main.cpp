@@ -4,10 +4,11 @@
 #include "file.h"
 #include "kinect.h"
 #include "pcloud.h"
+#include "point.h"
 #include "projector.h"
 #include "usage.h"
 
-using t_RGBD = std::pair<cv::Mat, std::vector<t_rgbd>>;
+using t_RGBD = std::pair<cv::Mat, std::vector<Point>>;
 
 bool calibrationProjector(
     Projector& projector, const cv::Size& dChessboard, const std::string& file)
@@ -45,7 +46,7 @@ t_RGBD getRGBData(std::shared_ptr<Kinect>& sptr_kinect)
     auto* rgbData = k4a_image_get_buffer(sptr_kinect->m_c2d);
 
     const std::string file = "./output/pcloud/3dPCloud.ply";
-    std::vector<t_rgbd> rgbd = pcloud::retrieve(w, h, pCloudData, rgbData);
+    std::vector<Point> pCloud = pcloud::build(w, h, pCloudData, rgbData);
     // pcloud::write(rgbdPCloud, file);
     cv::Mat frame
         = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
@@ -53,7 +54,7 @@ t_RGBD getRGBData(std::shared_ptr<Kinect>& sptr_kinect)
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
 
-    t_RGBD data = std::make_pair(frame, rgbd);
+    t_RGBD data = std::make_pair(frame, pCloud);
 
     // couple frame and point cloud
     return data;
