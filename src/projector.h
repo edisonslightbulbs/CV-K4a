@@ -3,8 +3,9 @@
 
 #include "chessboard.h"
 #include "pcloud.h"
+#include "point.h"
 
-using t_RGBD = std::pair<cv::Mat, std::vector<t_rgbd>>;
+using t_RGBD = std::pair<cv::Mat, std::vector<Point>>;
 
 class Projector {
 public:
