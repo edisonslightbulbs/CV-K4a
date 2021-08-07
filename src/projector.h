@@ -5,7 +5,11 @@
 #include "pcloud.h"
 #include "point.h"
 
-using t_RGBD = std::pair<cv::Mat, std::vector<Point>>;
+#include "svd.h" //<-- include svd library
+#include <Eigen/Dense>
+#include <vector>
+
+using t_pCloud = std::pair<cv::Mat, std::vector<Point>>;
 
 class Projector {
 public:
@@ -14,7 +18,7 @@ public:
     std::vector<cv::Mat> m_t;
     cv::Mat m_distortionCoefficients;
 
-    std::vector<t_RGBD> m_RGBDCollection;
+    std::vector<t_pCloud> m_RGBDCollection;
     std::vector<std::vector<cv::Point3f>> m_worldSpaceCorners;
     std::vector<std::vector<cv::Point2f>> m_cameraSpaceCorners;
 
@@ -26,6 +30,15 @@ public:
                     (float)j * blockWidth, (float)i * blockWidth, 0.0f));
             }
         }
+    }
+
+    void computeSVD(const std::vector<Point>& pCloud)
+    {
+        // set svd computation flag
+        int flag = Eigen::ComputeThinU | Eigen::ComputeThinV;
+
+        // compute SVD
+        SVD usv(pCloud, flag);
     }
 
     void findCameraSpaceCorners()
@@ -51,17 +64,21 @@ public:
             // overlay chessboard image
             if (found) {
                 m_cameraSpaceCorners.emplace_back(chessboardCorners);
-                // todo: actually, at this point lets retrieve the RGB-D values and
-                //   start plotting and building world space coordinates using 3D
-                //   point clouds
             }
         }
+        // todo: actually, at this point lets retrieve the RGB-D values and
+        //   start plotting and building world space coordinates using 3D
+        //   point clouds -
+        //   1. plot points
+        //   2. transform points
+        //   3. test
     }
 
     void calibrate(const cv::Size& boardSize, float blockWidth)
     {
         findCameraSpaceCorners();
-        findWorldSpaceCorners(boardSize, blockWidth); // todo: in principle this is incorrect!
+        findWorldSpaceCorners(
+            boardSize, blockWidth); // todo: in principle this is incorrect!
         // todo: implement svd based solution
         m_worldSpaceCorners.resize(
             m_cameraSpaceCorners.size(), m_worldSpaceCorners[0]);
