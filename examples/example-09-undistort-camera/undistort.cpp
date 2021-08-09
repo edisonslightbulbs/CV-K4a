@@ -32,8 +32,8 @@ int main()
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
 
     // setup windows
-    const std::string INPUT = "un-distorting: input image";
-    const std::string OUTPUT = "un-distorting: output image";
+    const std::string INPUT = "Input";
+    const std::string OUTPUT = "Output";
     cv::namedWindow(INPUT, cv::WINDOW_AUTOSIZE);
     cv::namedWindow(OUTPUT, cv::WINDOW_AUTOSIZE);
 
@@ -42,7 +42,7 @@ int main()
     K = cv::Mat::eye(3, 3, CV_64F);
     usage::prompt(LOADING_CALIBRATION_PARAMETERS);
 
-    std::string file = "./output/calibration/samples/camera.txt";
+    std::string file = "./output/calibration/camera.txt";
     parameters::read(file, K, distortionCoefficients);
 
     src = grabFrame(sptr_kinect);
@@ -57,11 +57,12 @@ int main()
         K, distortionCoefficients, dSize, alpha, dSize);
     cv::undistort(src, dst, K, distortionCoefficients, refinedK);
 
-    // todo: crop iff necessary
-
     // show
     cv::imshow(INPUT, src);
+    cv::imwrite("./output/distorted.png", src);
+
     cv::imshow(OUTPUT, dst);
+    cv::imwrite("./output/undistorted.png", dst);
     cv::waitKey();
     return 0;
 }
