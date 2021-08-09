@@ -1,0 +1,17 @@
+.idea/
+build/
+libs/
+scripts/
+external/
+cmake/
+output/
+cmake-build-debug/
+src/main.cpp
+
+*.write
+*.csv
+*.png
+*.ply
+*.log
+CMakeLists.txt
+calibration.txt

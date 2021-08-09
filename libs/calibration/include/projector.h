@@ -9,7 +9,7 @@
 #include <Eigen/Dense>
 #include <vector>
 
-using t_pCloud = std::pair<cv::Mat, std::vector<Point>>;
+using t_pCloudFrame = std::pair<cv::Mat, std::vector<Point>>;
 
 class Projector {
 public:
@@ -18,7 +18,7 @@ public:
     std::vector<cv::Mat> m_t;
     cv::Mat m_distortionCoefficients;
 
-    std::vector<t_pCloud> m_RGBDCollection;
+    std::vector<t_pCloudFrame> m_RGBDCollection;
     std::vector<std::vector<cv::Point3f>> m_worldSpaceCorners;
     std::vector<std::vector<cv::Point2f>> m_cameraSpaceCorners;
 
