@@ -11,9 +11,9 @@
 [submodule "libs/homography"]
 	path = libs/homography
 	url = git@github.com:edisonslightbulbs/homography.git
-[submodule "libs/point"]
-	path = libs/point
-	url = git@github.com:edisonslightbulbs/point.git
 [submodule "libs/SVD"]
 	path = libs/SVD
 	url = git@github.com:edisonslightbulbs/SVD.git
+[submodule "libs/point"]
+	path = libs/point
+	url = git@github.com:edisonslightbulbs/point.git

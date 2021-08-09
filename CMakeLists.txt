@@ -91,7 +91,6 @@ add_executable(cv-k4a
     ${EXT_SRC}
     ${LIBS_SRC}
     ${SRC_DIR}/main.cpp
-    ${SRC_DIR}/pcloud.cpp
     )
 
 # include directories
