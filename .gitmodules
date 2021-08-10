@@ -5,15 +5,18 @@
 [submodule "libs/calibration"]
 	path = libs/calibration
 	url = git@github.com:edisonslightbulbs/calibration.git
-[submodule "libs/kinect-k4a"]
-	path = libs/kinect-k4a
-	url = git@github.com:edisonslightbulbs/kinect-k4a.git
 [submodule "libs/homography"]
 	path = libs/homography
 	url = git@github.com:edisonslightbulbs/homography.git
 [submodule "libs/SVD"]
 	path = libs/SVD
 	url = git@github.com:edisonslightbulbs/SVD.git
-[submodule "libs/point"]
-	path = libs/point
-	url = git@github.com:edisonslightbulbs/point.git
+[submodule "libs/Point"]
+	path = libs/Point
+	url = git@github.com:edisonslightbulbs/Point.git
+[submodule "libs/procam-calibration"]
+	path = libs/procam-calibration
+	url = git@github.com:edisonslightbulbs/procam-calibration.git
+[submodule "libs/K4a"]
+	path = libs/K4a
+	url = git@github.com:edisonslightbulbs/K4a.git
