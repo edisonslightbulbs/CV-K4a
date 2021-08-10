@@ -20,3 +20,6 @@
 [submodule "libs/K4a"]
 	path = libs/K4a
 	url = git@github.com:edisonslightbulbs/K4a.git
+[submodule "libs/scene"]
+	path = libs/scene
+	url = git@github.com:edisonslightbulbs/scene.git
