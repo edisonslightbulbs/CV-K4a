@@ -8,3 +8,5 @@ cmake-build-debug/
 *.log
 external/
 .cache/
+local/
+src/temp.cpp
