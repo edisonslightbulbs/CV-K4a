@@ -20,23 +20,24 @@ namespace icon {
         cv::cvtColor(bgraSplit[3], layer, cv:: COLOR_GRAY2BGR);
         return layer;
     }
-    void scale()
+
+    void saturate(cv::Mat& inputImg, const int& beta, const double& alpha){
+        cv::Mat outputImg = cv::Mat::zeros(inputImg.size(), inputImg.type());
+        for (int y = 0; y < inputImg.rows; y++) {
+            for (int x = 0; x < inputImg.cols; x++) {
+                for (int c = 0; c < inputImg.channels(); c++) {
+                    outputImg.at<cv::Vec3b>(y, x)[c] = cv::saturate_cast<uchar>(
+                            alpha * inputImg.at<cv::Vec3b>(y, x)[c] + beta);
+                }
+            }
+        }
+        inputImg = outputImg;
+    }
+
+    void scale(cv::Mat& img, const int& w, const int& h)
     {
-        // initialize resources
-        const std::string INPUT = "scale-input";
-        const std::string OUTPUT = "scale-output";
-        cv::Mat src, dst;
-
-        src = cv::imread("./resources/sample.png");
-
-        // scale
-        cv::Size dSize = cv::Size(300, 300);
-        cv::resize(src, dst, dSize, 0, 0, cv::INTER_AREA);
-
-        // show window
-        cv::imshow(INPUT, src);
-        cv::imshow(OUTPUT, dst);
-        cv::waitKey();
+        cv::Size dSize = cv::Size(w, h);
+        cv::resize(img, img, dSize, 0, 0, cv::INTER_AREA);
     }
 
     void transform()
