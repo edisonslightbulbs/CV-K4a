@@ -1,92 +1,91 @@
-#include <string>
-#include <thread>
-#include <chrono>
-
+#include "scene.h"
 #include <opencv2/opencv.hpp>
-#include "icon.h"
-#include "kinect.h"
 
+#if __linux__
+#include "kinect.h"
 cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
 {
     sptr_kinect->capture();
+    sptr_kinect->depthCapture();
+    sptr_kinect->pclCapture();
     sptr_kinect->imgCapture();
-    uint8_t* rgbData = k4a_image_get_buffer(sptr_kinect->m_img);
-    int w = k4a_image_get_width_pixels(sptr_kinect->m_img);
-    int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
+    sptr_kinect->c2dCapture();
+    sptr_kinect->transform(RGB_TO_DEPTH);
+
+    auto* rgbData = k4a_image_get_buffer(sptr_kinect->m_c2d);
+    int w = k4a_image_get_width_pixels(sptr_kinect->m_c2d);
+    int h = k4a_image_get_height_pixels(sptr_kinect->m_c2d);
 
     cv::Mat frame
-            = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
+        = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
 
     sptr_kinect->releaseK4aCapture();
     sptr_kinect->releaseK4aImages();
 
     return frame;
 }
+#endif
+
+void saturate(const cv::Mat& src, cv::Mat& dst)
+{
+    int beta = 100;     // brightness | range 1 - 100
+    double alpha = 3.0; // contrast | range 1.0 - 3.0]
+
+    dst = cv::Mat::zeros(src.size(), src.type());
+    for (int y = 0; y < src.rows; y++) {
+        for (int x = 0; x < src.cols; x++) {
+            for (int c = 0; c < src.channels(); c++) {
+                dst.at<cv::Vec3b>(y, x)[c] = cv::saturate_cast<uchar>(
+                    alpha * src.at<cv::Vec3b>(y, x)[c] + beta);
+            }
+        }
+    }
+}
 
 int main()
 {
+    std::vector<cv::Mat> scene(2);
+
+#if __linux__
     // initialize kinect
     std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+#endif
 
-    // create full screen window
-    const std::string window = "scene";
-    cv::namedWindow(window, cv::WINDOW_NORMAL);
-    cv::setWindowProperty(window, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+#if __linux__
+    scene::flicker(sptr_kinect, window, w, h, scene);
+    scene::write(scene);
+#endif
 
-    // create background image
-    const int h = 768;
-    const int w = 1366;
-    cv::Mat background(h, w, CV_8UC3, cv::Scalar(0, 0, 0));
+#if __APPLE__
+    // load background scene images
+    scene::load(scene);
+#endif
 
-    // create foreground
-    cv::Mat foreground_1 = icon::load("./resources/icons/spotify.png");
-    cv::Mat foreground_2 = icon::load("./resources/icons/discord.png");
-    cv::Mat foreground_3 = icon::load("./resources/icons/facebook.png");
+    cv::Mat bgr[3];
+    cv::Mat diff, contrast, thresholded;
 
-    // saturate foreground image
-    int beta = 0;     // brightness | range 1 - 100
-    double alpha = 3.0; //   contrast | range 1.0 - 3.0
-    icon::saturate(foreground_1, beta, alpha);
-    icon::saturate(foreground_2, beta, alpha);
-    icon::saturate(foreground_3, beta, alpha);
+    // extract area of projection | max flux AOE
+    // cv::equalizeHist(bgr[0], contrast); // contrast
+    diff = scene[0] - scene[1]; // diff
+    saturate(diff, contrast);   // contrast
+    cv::split(contrast, bgr);   // split
+    cv::threshold(
+        bgr[0], thresholded, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
 
-    // scale foreground image to some width and height
-    int scaleWidth = 60;
-    int scaleHeight = 60;
-    icon::scale(foreground_1, scaleWidth, scaleHeight);
-    icon::scale(foreground_2, scaleWidth, scaleHeight);
-    icon::scale(foreground_3, scaleWidth, scaleHeight);
+    // de-noise
+    //-- cv::Mat blurred, roi, final;
+    //-- cv::Size dBlur = cv::Size(33, 33);
+    //-- cv::GaussianBlur(thresholded, blurred, dBlur, 0);
+    //-- cv::threshold(blurred, final, 0, 255, cv::THRESH_BINARY +
+    // cv::THRESH_OTSU);
 
-    // initialize starting position for drawing
-    // foreground image on background image
-    int xMin = background.cols/2;
-    int yMin = background.rows/2;
+    cv::imshow("1: image subtraction", diff);
+    cv::imshow("2: image contrasting", contrast);
+    cv::imshow("3: blue channel", bgr[0]);
+    cv::imshow("4: thresholding", thresholded);
+    //-- cv::imshow("5: de-noised", blurred);
+    //-- cv::imshow("6: final", final);
 
-    // get width and height of the foreground image
-    int width = foreground_1.cols;
-    int height = foreground_1.rows;
-
-    // create roi using starting position and size of foreground
-    cv::Rect roi_1 = cv::Rect(xMin, yMin, width, height);
-    cv::Rect roi_2 = cv::Rect(xMin + (xMin/2), yMin + (yMin/2), width, height);
-    cv::Rect roi_3 = cv::Rect(xMin - (xMin/2), yMin - (yMin/2), width, height);
-
-    // get roi from background image
-    cv::Mat backgroundRoi_1 = background(roi_1);
-    cv::Mat backgroundRoi_2 = background(roi_2);
-    cv::Mat backgroundRoi_3 = background(roi_3);
-
-    // overlay foreground on background @ roi
-    foreground_1.copyTo(backgroundRoi_1);
-    //foreground_2.copyTo(backgroundRoi_2);
-    foreground_3.copyTo(backgroundRoi_3);
-
-    // show window at desired location
-    cv::imshow(window, background);
-    cv::moveWindow(window, 3000, 0);
     cv::waitKey();
-
-    // std::this_thread::sleep_for(std::chrono::seconds(2));
-    // cv::Mat sceneImg = grabFrame(sptr_kinect);
-    // cv::imwrite("./output/scene/icons.png", sceneImg);
+    return 0;
 }
