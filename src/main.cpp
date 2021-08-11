@@ -72,19 +72,30 @@ int main()
     cv::threshold(
         bgr[0], thresholded, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
 
-    // de-noise
-    //-- cv::Mat blurred, roi, final;
-    //-- cv::Size dBlur = cv::Size(33, 33);
-    //-- cv::GaussianBlur(thresholded, blurred, dBlur, 0);
-    //-- cv::threshold(blurred, final, 0, 255, cv::THRESH_BINARY +
-    // cv::THRESH_OTSU);
+    cv::Mat element, roi, final;
+    element = cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3));
+    cv::morphologyEx(thresholded, final, cv::MORPH_OPEN, element);
+
+    // remove noise using smoothing
+    cv::Mat blurred, other;
+    cv::Size dBlur = cv::Size(35, 35);
+    cv::GaussianBlur(final, blurred, dBlur, 0);
+
+    // threshold to extract flux
+    cv::threshold(
+            blurred, other, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+
+    // crop region of interest
+     cv::Rect roiBoundary = cv::boundingRect(other);
+     roi = scene[0](roiBoundary);
 
     cv::imshow("1: image subtraction", diff);
     cv::imshow("2: image contrasting", contrast);
     cv::imshow("3: blue channel", bgr[0]);
     cv::imshow("4: thresholding", thresholded);
-    //-- cv::imshow("5: de-noised", blurred);
-    //-- cv::imshow("6: final", final);
+    cv::imshow("5: final", final);
+    cv::imshow("6: final", other);
+     cv::imshow("7: roi", roi);
 
     cv::waitKey();
     return 0;
