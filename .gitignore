@@ -10,3 +10,4 @@ external/
 .cache/
 local/
 src/temp.cpp
+external/libtorch/
