@@ -5,9 +5,6 @@
 [submodule "libs/calibration"]
 	path = libs/calibration
 	url = git@github.com:edisonslightbulbs/calibration.git
-[submodule "libs/homography"]
-	path = libs/homography
-	url = git@github.com:edisonslightbulbs/homography.git
 [submodule "libs/SVD"]
 	path = libs/SVD
 	url = git@github.com:edisonslightbulbs/SVD.git

@@ -1,30 +1,7 @@
 #include "scene.h"
 #include <opencv2/opencv.hpp>
 
-#if __linux__
 #include "kinect.h"
-cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
-{
-    sptr_kinect->capture();
-    sptr_kinect->depthCapture();
-    sptr_kinect->pclCapture();
-    sptr_kinect->imgCapture();
-    sptr_kinect->c2dCapture();
-    sptr_kinect->transform(RGB_TO_DEPTH);
-
-    auto* rgbData = k4a_image_get_buffer(sptr_kinect->m_c2d);
-    int w = k4a_image_get_width_pixels(sptr_kinect->m_c2d);
-    int h = k4a_image_get_height_pixels(sptr_kinect->m_c2d);
-
-    cv::Mat frame
-        = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
-
-    sptr_kinect->releaseK4aCapture();
-    sptr_kinect->releaseK4aImages();
-
-    return frame;
-}
-#endif
 
 void saturate(const cv::Mat& src, cv::Mat& dst)
 {
@@ -42,61 +19,75 @@ void saturate(const cv::Mat& src, cv::Mat& dst)
     }
 }
 
-int main()
+cv::Rect segment(cv::Mat& background, cv::Mat& foreground)
 {
-    std::vector<cv::Mat> scene(2);
 
-#if __linux__
-    // initialize kinect
-    std::shared_ptr<Kinect> sptr_kinect(new Kinect);
-#endif
+    // subtract images and contrast resulting image
+    cv::Mat diff, contrast;
+    diff = background - foreground;
+    saturate(diff, contrast);
 
-#if __linux__
-    scene::flicker(sptr_kinect, window, w, h, scene);
-    scene::write(scene);
-#endif
-
-#if __APPLE__
-    // load background scene images
-    scene::load(scene);
-#endif
-
+    // split saturate image
     cv::Mat bgr[3];
-    cv::Mat diff, contrast, thresholded;
+    cv::split(contrast, bgr);
+    // cv::equalizeHist(src, dst); // one other good approach to contrasting
 
-    // extract area of projection | max flux AOE
-    // cv::equalizeHist(bgr[0], contrast); // contrast
-    diff = scene[0] - scene[1]; // diff
-    saturate(diff, contrast);   // contrast
-    cv::split(contrast, bgr);   // split
-    cv::threshold(
-        bgr[0], thresholded, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+    // threshold blue channel
+    cv::Mat thresh;
+    cv::threshold(bgr[0], thresh, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
 
-    cv::Mat element, roi, final;
-    element = cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3));
-    cv::morphologyEx(thresholded, final, cv::MORPH_OPEN, element);
+    // clean using morphological operations
+    cv::Mat shape, proposal;
+    shape = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3));
+    cv::morphologyEx(thresh, proposal, cv::MORPH_OPEN, shape);
 
-    // remove noise using smoothing
-    cv::Mat blurred, other;
+    // de-noise
+    cv::Mat blur, dst;
     cv::Size dBlur = cv::Size(35, 35);
-    cv::GaussianBlur(final, blurred, dBlur, 0);
+    cv::GaussianBlur(proposal, blur, dBlur, 0);
 
     // threshold to extract flux
-    cv::threshold(
-            blurred, other, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
+    cv::threshold(blur, dst, 0, 255, cv::THRESH_BINARY + cv::THRESH_OTSU);
 
-    // crop region of interest
-     cv::Rect roiBoundary = cv::boundingRect(other);
-     roi = scene[0](roiBoundary);
+#define show 0
+#if show == 1
+    cv::imshow("1: Background subtraction", diff);
+    cv::imshow("2: Contrast", contrast);
+    cv::imshow("3: Blue channel", bgr[0]);
+    cv::imshow("4: Binary inverted threshold", thresh);
+    cv::imshow("5: Proposal", proposal);
+    cv::imshow("6: Final segment", dst);
+#endif
 
-    cv::imshow("1: image subtraction", diff);
-    cv::imshow("2: image contrasting", contrast);
-    cv::imshow("3: blue channel", bgr[0]);
-    cv::imshow("4: thresholding", thresholded);
-    cv::imshow("5: final", final);
-    cv::imshow("6: final", other);
-     cv::imshow("7: roi", roi);
+#define write 0
+#if write == 1
+    cv::imwrite("./output/diff.png", diff);
+    cv::imwrite("./output/contrast.png", contrast);
+    cv::imwrite("./output/bluechannel.png", bgr[0]);
+    cv::imwrite("./output/thresh.png", thresh);
+    cv::imwrite("./output/proposal.png", proposal);
+    cv::imwrite("./output/segment.png", dst);
+
+#endif
 
     cv::waitKey();
+    return cv::boundingRect(dst);
+}
+
+int main()
+{
+    // initialize kinect and scene container
+    std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+    std::vector<cv::Mat> scene;
+
+    // setup window
+    int w = 1366;
+    int h = 768;
+    const std::string window = "Area of projection";
+    scene::alternateDisplayColor(sptr_kinect, window, w, h, scene);
+
+    // // query roi for re-projection
+    // cv::Rect roiBoundary = segment(scene[0], scene[1]);
+    // cv::Mat roi = scene[0](roiBoundary);
     return 0;
 }
