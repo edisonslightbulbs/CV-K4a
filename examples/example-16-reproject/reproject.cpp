@@ -13,13 +13,16 @@ int main()
     scene::alternateDisplayColor(sptr_kinect, window, w, h, sceneImages);
 
     // find area of projection (aop)
-    cv::Rect boundary = scene::projectionArea(sceneImages[1], sceneImages[0]);
+    cv::Rect boundary
+        = scene::findProjectionArea(sceneImages[1], sceneImages[0]);
     cv::Mat background = sceneImages[1];
+
     // scene::undistort(background);
     cv::Mat roi = background(boundary);
 
     // reproject aop
     cv::Mat R, t;
+    // scene::predistort(background);
     scene::project(window, w, h, roi, R, t);
     // cv::imshow("Region of interest", roi);
 
