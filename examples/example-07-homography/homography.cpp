@@ -1,94 +1,91 @@
 #include <iostream>
-#include <thread>
-
-#include <opencv2/aruco.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "file.h"
-#include "kinect.h"
-#include "usage.h"
+cv::Mat background;                     // background image
+cv::Mat foreground;                     // foreground image
+std::vector<cv::Point2f> backgroundRoi; // background region (4 corners)
+std::vector<cv::Point2f> foregroundRoi; // projection region (4 corners)
 
-const float arucoSquareDimension = 0.0565f;
-
-void create4x4Markers()
+void overlay(cv::Mat& src, cv::Mat& dst)
 {
-    cv::Mat outputMarker;
-    cv::Ptr<cv::aruco::Dictionary> markerDictionary
-        = cv::aruco::getPredefinedDictionary(
-            cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
-    for (int i = 0; i < 50; i++) {
-        cv::aruco::drawMarker(markerDictionary, i, 500, outputMarker, 1);
-        std::ostringstream convert;
-        std::string imageName = "4x4Marker_";
-        convert << imageName << i << ".jpg";
-        cv::imwrite(convert.str(), outputMarker);
-    }
+    cv::Mat gray, grayCopy, grayInv, grayInvCopy;
+    cv::cvtColor(dst, gray, cv::COLOR_BGR2GRAY);
+    cv::threshold(gray, gray, 0, 255, cv::THRESH_BINARY);
+    cv::bitwise_not(gray, grayInv);
+
+    dst.copyTo(grayCopy, gray);
+    src.copyTo(grayInvCopy, grayInv);
+
+    cv::Mat homography = grayInvCopy + grayCopy;
+    cv::imshow("homography", homography);
+    cv::waitKey(0);
 }
 
-cv::Mat grabFrame(std::shared_ptr<Kinect>& sptr_kinect)
+void showXY(const int& corners, const int& x, const int& y)
 {
-    sptr_kinect->capture();
-    sptr_kinect->imgCapture();
-    uint8_t* rgbData = k4a_image_get_buffer(sptr_kinect->m_img);
-    int w = k4a_image_get_width_pixels(sptr_kinect->m_img);
-    int h = k4a_image_get_height_pixels(sptr_kinect->m_img);
+    switch (corners) {
+    case 1:
+        std::cout << "    top left corner: ";
+        break;
+    case 2:
+        std::cout << " bottom left corner: ";
+        break;
+    case 3:
+        std::cout << "bottom right corner: ";
+        break;
+    case 4:
+        std::cout << "   top right corner: ";
+        break;
+    default:
+        break;
+    }
+    std::cout << x << ", " << y << std::endl;
+}
 
-    cv::Mat frame
-        = cv::Mat(h, w, CV_8UC4, (void*)rgbData, cv::Mat::AUTO_STEP).clone();
+void callback(int e, int x, int y, int d, void* ptr)
+{
+    cv::Mat warpedForeground;
 
-    sptr_kinect->releaseK4aCapture();
-    sptr_kinect->releaseK4aImages();
+    if (e == cv::EVENT_LBUTTONDOWN) {
+        if (foregroundRoi.size() <= 4) {
+            foregroundRoi.emplace_back(float(x), float(y));
+            showXY((int)foregroundRoi.size(), x, y);
+        }
+        if (foregroundRoi.size() == 4) {
+            std::cout << "-- computing homography " << std::endl;
+            cv::Mat homography = cv::findHomography(backgroundRoi, foregroundRoi, 0);
+            cv::warpPerspective(foreground, warpedForeground, homography, background.size());
 
-    return frame;
+            foregroundRoi.clear();
+            overlay(background, warpedForeground);
+            //cv::setMouseCallback("homography", nullptr, nullptr);
+            cv::setMouseCallback("homography", callback, nullptr);
+        }
+    }
 }
 
 int main()
 {
-    // initialize kinect and get image dimensions
-    std::shared_ptr<Kinect> sptr_kinect(new Kinect);
+    background = imread("./main.jpg", cv::IMREAD_COLOR);
+    foreground = imread("./logo.jpg", cv::IMREAD_COLOR);
 
-    // setup camera matrix and initialize coefficients
-    cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat coefficients;
+    // initialize correspondence between background and foreground images
+    backgroundRoi.emplace_back(float(0), float(0));
+    backgroundRoi.emplace_back(float(0), float(foreground.rows));
+    backgroundRoi.emplace_back(float(foreground.cols), float(foreground.rows));
+    backgroundRoi.emplace_back(float(foreground.cols), float(0));
 
-    // initialize named window and frames for superimposing
-    cv::namedWindow("kinect", cv::WINDOW_AUTOSIZE);
-    cv::Mat frame, frameCopy;
+    cv::namedWindow("homography", cv::WINDOW_AUTOSIZE); // Create a window for display.
+    cv::imshow("homography", background);
 
-    usage::prompt(LOADING_CALIBRATION_PARAMETERS);
-    parameters::read("calibration.txt", cameraMatrix, coefficients);
-    usage::prompt(FINDING_ARUCO_MARKERS);
+    cv::setMouseCallback("homography", callback, nullptr);
 
-    std::vector<int> markerIds;
-    std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCorners;
-
-    cv::Ptr<cv::aruco::Dictionary> markerDictionary
-        = cv::aruco::getPredefinedDictionary(
-            cv::aruco::PREDEFINED_DICTIONARY_NAME::DICT_4X4_50);
-
-    // measurement of square side in meters
-    const float ARUCO_SQUARE_DIMENSION = 0.0565f;
-
-    std::vector<cv::Vec3d> rVectors, tVectors;
     while (true) {
-        frame = grabFrame(sptr_kinect);
-        cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGB);
-        cv::aruco::detectMarkers(
-            frame, markerDictionary, markerCorners, markerIds);
-        cv::aruco::estimatePoseSingleMarkers(markerCorners,
-            ARUCO_SQUARE_DIMENSION, cameraMatrix, coefficients, rVectors,
-            tVectors);
-
-        // draw axis on detected marker
-        for (int i = 0; i < markerIds.size(); i++) {
-            cv::aruco::drawAxis(frame, cameraMatrix, coefficients, rVectors[i],
-                tVectors[i], 0.1f);
-        }
-
-        // show frame
-        cv::imshow("kinect", frame);
-        if (cv::waitKey(30) >= 0)
+        int key = cv::waitKey(10);
+        if (key == 27)
             break;
     }
+
+    return 0;
 }
