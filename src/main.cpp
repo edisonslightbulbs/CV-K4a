@@ -1,68 +1,91 @@
-#include <string>
-
-#include "icon.h"
+#include <iostream>
+#include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
+
+cv::Mat background;                     // background image
+cv::Mat foreground;                     // foreground image
+std::vector<cv::Point2f> backgroundRoi; // background region (4 corners)
+std::vector<cv::Point2f> foregroundRoi; // projection region (4 corners)
+
+void overlay(cv::Mat& src, cv::Mat& dst)
+{
+    cv::Mat gray, grayCopy, grayInv, grayInvCopy;
+    cv::cvtColor(dst, gray, cv::COLOR_BGR2GRAY);
+    cv::threshold(gray, gray, 0, 255, cv::THRESH_BINARY);
+    cv::bitwise_not(gray, grayInv);
+
+    dst.copyTo(grayCopy, gray);
+    src.copyTo(grayInvCopy, grayInv);
+
+    cv::Mat homography = grayInvCopy + grayCopy;
+    cv::imshow("homography", homography);
+    cv::waitKey(0);
+}
+
+void showXY(const int& corners, const int& x, const int& y)
+{
+    switch (corners) {
+    case 1:
+        std::cout << "    top left corner: ";
+        break;
+    case 2:
+        std::cout << " bottom left corner: ";
+        break;
+    case 3:
+        std::cout << "bottom right corner: ";
+        break;
+    case 4:
+        std::cout << "   top right corner: ";
+        break;
+    default:
+        break;
+    }
+    std::cout << x << ", " << y << std::endl;
+}
+
+void callback(int e, int x, int y, int d, void* ptr)
+{
+    cv::Mat warpedForeground;
+
+    if (e == cv::EVENT_LBUTTONDOWN) {
+        if (foregroundRoi.size() <= 4) {
+            foregroundRoi.emplace_back(float(x), float(y));
+            showXY((int)foregroundRoi.size(), x, y);
+        }
+        if (foregroundRoi.size() == 4) {
+            std::cout << "-- computing homography " << std::endl;
+            cv::Mat homography = cv::findHomography(backgroundRoi, foregroundRoi, 0);
+            cv::warpPerspective(foreground, warpedForeground, homography, background.size());
+
+            foregroundRoi.clear();
+            overlay(background, warpedForeground);
+            //cv::setMouseCallback("homography", nullptr, nullptr);
+            cv::setMouseCallback("homography", callback, nullptr);
+        }
+    }
+}
 
 int main()
 {
-    // create full screen window
-    const std::string window = "scene";
-    cv::namedWindow(window, cv::WINDOW_NORMAL);
-    cv::setWindowProperty(
-        window, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+    background = imread("./main.jpg", cv::IMREAD_COLOR);
+    foreground = imread("./logo.jpg", cv::IMREAD_COLOR);
 
-    // create background image
-    const int h = 768;
-    const int w = 1366;
-    cv::Mat background(h, w, CV_8UC3, cv::Scalar(0, 0, 0));
+    // initialize correspondence between background and foreground images
+    backgroundRoi.emplace_back(float(0), float(0));
+    backgroundRoi.emplace_back(float(0), float(foreground.rows));
+    backgroundRoi.emplace_back(float(foreground.cols), float(foreground.rows));
+    backgroundRoi.emplace_back(float(foreground.cols), float(0));
 
-    // create foreground
-    cv::Mat foreground_1 = icon::load("./resources/icons/spotify.png");
-    cv::Mat foreground_2 = icon::load("./resources/icons/discord.png");
-    cv::Mat foreground_3 = icon::load("./resources/icons/facebook.png");
+    cv::namedWindow("homography", cv::WINDOW_AUTOSIZE); // Create a window for display.
+    cv::imshow("homography", background);
 
-    // saturate foreground image
-    int beta = 0;       // brightness | range 1 - 100
-    double alpha = 3.0; //   contrast | range 1.0 - 3.0
-    icon::saturate(foreground_1, beta, alpha);
-    icon::saturate(foreground_2, beta, alpha);
-    icon::saturate(foreground_3, beta, alpha);
+    cv::setMouseCallback("homography", callback, nullptr);
 
-    // scale foreground image to some width and height
-    int scaleWidth = 60;
-    int scaleHeight = 60;
-    icon::scale(foreground_1, scaleWidth, scaleHeight);
-    icon::scale(foreground_2, scaleWidth, scaleHeight);
-    icon::scale(foreground_3, scaleWidth, scaleHeight);
+    while (true) {
+        int key = cv::waitKey(10);
+        if (key == 27)
+            break;
+    }
 
-    // initialize starting position for drawing
-    // foreground image on background image
-    int xMin = background.cols / 2;
-    int yMin = background.rows / 2;
-
-    // get width and height of the foreground image
-    int width = foreground_1.cols;
-    int height = foreground_1.rows;
-
-    // create roi using starting position and size of foreground
-    cv::Rect roi_1 = cv::Rect(xMin, yMin, width, height);
-    cv::Rect roi_2
-        = cv::Rect(xMin + (xMin / 2), yMin + (yMin / 2), width, height);
-    cv::Rect roi_3
-        = cv::Rect(xMin - (xMin / 2), yMin - (yMin / 2), width, height);
-
-    // get roi from background image
-    cv::Mat backgroundRoi_1 = background(roi_1);
-    cv::Mat backgroundRoi_2 = background(roi_2);
-    cv::Mat backgroundRoi_3 = background(roi_3);
-
-    // overlay foreground on background @ roi
-    foreground_1.copyTo(backgroundRoi_1);
-    // foreground_2.copyTo(backgroundRoi_2);
-    foreground_3.copyTo(backgroundRoi_3);
-
-    // show window at desired location
-    cv::imshow(window, background);
-    cv::moveWindow(window, 3000, 0);
-    cv::waitKey();
+    return 0;
 }
