@@ -7,8 +7,7 @@
 # created: 2021-04-15 18:59
 # Github: https://github.com/antiqueeverett/
 
-PROJECT_DIR=$(dirname $(dirname $(readlink -f "$0")))
-echo "-- executing project"
+PROJECT_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")"
 
 # -- BIN directory
 cd "$PROJECT_DIR" || return

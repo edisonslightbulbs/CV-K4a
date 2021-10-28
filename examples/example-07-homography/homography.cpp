@@ -25,20 +25,20 @@ void overlay(cv::Mat& src, cv::Mat& dst)
 void showXY(const int& corners, const int& x, const int& y)
 {
     switch (corners) {
-    case 1:
-        std::cout << "    top left corner: ";
-        break;
-    case 2:
-        std::cout << " bottom left corner: ";
-        break;
-    case 3:
-        std::cout << "bottom right corner: ";
-        break;
-    case 4:
-        std::cout << "   top right corner: ";
-        break;
-    default:
-        break;
+        case 1:
+            std::cout << "    top left corner: ";
+            break;
+        case 2:
+            std::cout << " bottom left corner: ";
+            break;
+        case 3:
+            std::cout << "bottom right corner: ";
+            break;
+        case 4:
+            std::cout << "   top right corner: ";
+            break;
+        default:
+            break;
     }
     std::cout << x << ", " << y << std::endl;
 }
@@ -79,6 +79,8 @@ int main()
     cv::namedWindow("homography", cv::WINDOW_AUTOSIZE); // Create a window for display.
     cv::imshow("homography", background);
 
+    std::cout << "-- click on four points to overlay computed homography" << std::endl;
+    std::cout << "-- n.b., start from the top-left corner and proceed anti-clockwise " << std::endl;
     cv::setMouseCallback("homography", callback, nullptr);
 
     while (true) {
